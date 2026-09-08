@@ -2,6 +2,53 @@ import XCTest
 
 final class GateUITests: XCTestCase {
     @MainActor
+    func testNotificationPermissionAndSettingsHandoff() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting", "--test-notifications"]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        // A fresh test installation exercises either decision; reruns reuse the OS's saved choice.
+        let prompt = springboard.alerts.firstMatch
+        if prompt.waitForExistence(timeout: 5) {
+            let screenshot = XCTAttachment(screenshot: springboard.screenshot())
+            screenshot.name = "First notification permission request"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let grantPermission = ProcessInfo.processInfo.environment["GATE_NOTIFICATION_TEST_RESPONSE"] == "allow"
+            if grantPermission { prompt.buttons["Allow"].tap() }
+            else { prompt.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Allow' AND label != 'Allow'")).firstMatch.tap() }
+            let guidance = app.staticTexts["notification-guidance"]
+            let expected = NSPredicate(format: "exists == %@", NSNumber(value: !grantPermission))
+            expectation(for: expected, evaluatedWith: guidance)
+            waitForExpectations(timeout: 5)
+            XCTAssertEqual(app.state, .runningForeground)
+            XCTAssertFalse(app.alerts["Gate needs attention"].exists)
+        }
+        let needsPermission = app.staticTexts["notification-guidance"].exists
+        if needsPermission {
+            let button = app.buttons["allow-notifications"]
+            if !button.isHittable { app.swipeUp() }
+            let denied = XCTAttachment(screenshot: app.screenshot())
+            denied.name = "Notifications disabled guidance"
+            denied.lifetime = .keepAlways
+            add(denied)
+            button.tap()
+        } else {
+            XCTAssertFalse(app.buttons["allow-notifications"].exists)
+            app.buttons["settings"].tap()
+            XCTAssertEqual(app.buttons["manage-notifications"].label, "Notification settings")
+            app.buttons["manage-notifications"].tap()
+        }
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 5))
+        XCTAssertFalse(springboard.alerts.firstMatch.exists)
+        // The simulator opens Settings but does not expose per-app notification toggles.
+        app.activate()
+        if !needsPermission { app.buttons["Done"].tap() }
+        XCTAssertEqual(app.staticTexts["notification-guidance"].exists, needsPermission)
+    }
+
+    @MainActor
     func testConfiguredDurationReachesChallengeAndLeavesExistingWindowAlone() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--uitesting"]

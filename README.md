@@ -51,6 +51,15 @@ Open **Settings → Unlock time** to choose **1, 3, 5, 10, 15, 30, or 60 minutes
 
 Notifications are optional. After answering, return to the app using the app switcher or Home Screen. The native flow requires a button tap; Gate does not silently redirect every app launch or install Shortcuts automations.
 
+On the notification-based flow, Gate asks for notification permission after Screen Time setup if you haven't answered before. **Opening a calculation** appears on the home screen only while permission is missing. Once allowed, that block disappears. If you deny permission or later turn notifications off, **Allow challenge notifications** opens iPhone Settings. Gate checks again when you return. You can also reach **Notification settings** from Gate's Settings after granting permission.
+
+<details>
+<summary>See notification setup</summary>
+<p>Simulator screenshots with sample apps: the first permission request, then guidance after denial. App blocking remains a preview.</p>
+<img src="docs/screenshots/notification-permission.png" width="300" alt="The iOS notification permission prompt shown over Gate's simulator preview">
+<img src="docs/screenshots/notifications-disabled.png" width="300" alt="Gate's home screen after notification permission is denied, with Opening a calculation guidance and an Allow challenge notifications button">
+</details>
+
 The project generator detects whether the selected SDK provides Apple's [`openParentalControlsApp`](https://developer.apple.com/documentation/managedsettings/shieldactionresponse/openparentalcontrolsapp) API. **Regenerate after switching or updating Xcode.** A newer phone alone cannot enable an API missing from the SDK used to build the app.
 
 ## Try it in the simulator
@@ -151,6 +160,8 @@ swift scripts/generate-icon.swift
 ```
 
 Core tests cover answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. Simulator tests cover saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for changing duration, wrong/correct answers, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
+
+The notification test adds `--test-notifications` to `--demo --uitesting` to exercise the real system prompt and Settings handoff while keeping app blocking in preview mode. Ordinary previews never request notification permission. The first test run denies the prompt by default; a fresh test installation with `TEST_RUNNER_GATE_NOTIFICATION_TEST_RESPONSE=allow` exercises granting it. Later runs reuse the OS's saved permission. Per-app notification toggles are unavailable in the tested simulator, so changing those settings and returning to Gate remains a physical-device check.
 
 | Directory | Purpose |
 | --- | --- |

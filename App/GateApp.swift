@@ -35,8 +35,12 @@ struct GateApp: App {
         WindowGroup {
             HomeView(model: model)
                 .tint(GateTheme.blue)
+                .task { await model.refreshNotifications() }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { model.refresh() }
+                    if phase == .active {
+                        model.refresh()
+                        Task { await model.refreshNotifications() }
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .gateChallengeRequested)) { _ in model.refresh() }
                 .onOpenURL { url in

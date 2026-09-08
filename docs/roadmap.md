@@ -42,3 +42,12 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and p
 - [x] Ignore generated projects, build outputs, credentials, and private development notes.
 - [x] Validate a clean checkout with generic identifiers and no local signing file.
 - [x] Prepare the public GitHub repository with an audited source and documentation set.
+
+## Notification permissions
+
+- [x] Ask once after Screen Time setup when the notification handoff is needed.
+- [x] Hide home guidance once notifications are authorized.
+- [x] Open notification settings from the permission button after denial.
+- [x] Refresh the OS permission on returning to Gate.
+- [x] Verify fresh Allow/Don't Allow prompts, conditional guidance, and Settings handoff in the simulator; inspect screenshots and build the signed iPhone app.
+- [ ] Verify toggling notification permission in Settings and returning on a physical iPhone.

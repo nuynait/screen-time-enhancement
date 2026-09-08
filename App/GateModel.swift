@@ -25,7 +25,10 @@ final class GateModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var challenge: ChallengeSession?
     @Published var selection = FamilyActivitySelection()
+    @Published private(set) var notificationAuthorization: UNAuthorizationStatus?
+    @Published private(set) var isUpdatingNotifications = false
     let isDemo: Bool
+    private let testsNotifications: Bool
     private var service: GateService?
     private let demoApps = [
         AppRow(id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, token: nil, demoName: "Rednote"),
@@ -35,11 +38,15 @@ final class GateModel: ObservableObject {
     init() {
         #if DEBUG
         isDemo = ProcessInfo.processInfo.arguments.contains("--demo")
+        testsNotifications = isDemo && ProcessInfo.processInfo.arguments.contains("--uitesting")
+            && ProcessInfo.processInfo.arguments.contains("--test-notifications")
         #else
         isDemo = false
+        testsNotifications = false
         #endif
         if isDemo {
             authorized = true
+            if !testsNotifications { notificationAuthorization = .authorized }
             if ProcessInfo.processInfo.arguments.contains("--challenge") { beginChallenge(for: demoApps[0]) }
         } else {
             do { service = try GateService() }
@@ -53,6 +60,13 @@ final class GateModel: ObservableObject {
     }
 
     var unlockDuration: UnlockDuration { state.unlockDuration }
+
+    var usesNotificationHandoff: Bool { testsNotifications || !GateHandoff.opensAppDirectly }
+    var canManageNotifications: Bool { !isDemo || testsNotifications }
+
+    var needsNotificationPermission: Bool {
+        usesNotificationHandoff && (notificationAuthorization == .notDetermined || notificationAuthorization == .denied)
+    }
 
     func setUnlockDuration(_ duration: UnlockDuration) {
         do {
@@ -90,14 +104,42 @@ final class GateModel: ObservableObject {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
             if service == nil { service = try GateService() }
             refresh()
+            await refreshNotifications()
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func refreshNotifications() async {
+        await updateNotifications(requestIfNeeded: authorized, openSettings: false)
+    }
+
     func allowNotifications() async {
-        do {
-            let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
-            if !allowed { errorMessage = "Notifications are off. You can enable them in Settings, or open Gate from your Home Screen after preparing a calculation." }
-        } catch { errorMessage = error.localizedDescription }
+        await updateNotifications(requestIfNeeded: true, openSettings: true)
+    }
+
+    private func updateNotifications(requestIfNeeded: Bool, openSettings: Bool) async {
+        guard usesNotificationHandoff, !isUpdatingNotifications, canManageNotifications else { return }
+        // Scene activation can race the first prompt or a button tap. Only one request may run.
+        isUpdatingNotifications = true
+        defer { isUpdatingNotifications = false }
+        let center = UNUserNotificationCenter.current()
+        notificationAuthorization = await center.notificationSettings().authorizationStatus
+        if notificationAuthorization == .notDetermined {
+            guard requestIfNeeded else { return }
+            do {
+                _ = try await center.requestAuthorization(options: [.alert, .sound])
+            } catch { errorMessage = error.localizedDescription }
+            notificationAuthorization = await center.notificationSettings().authorizationStatus
+            // Declining the first prompt must not immediately send someone to Settings.
+            return
+        }
+        guard openSettings else { return }
+        // iOS never repeats a denied prompt. This URL opens this app's notification page.
+        guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+        let opened = await UIApplication.shared.open(url)
+        if !opened, let fallback = URL(string: UIApplication.openSettingsURLString) {
+            let openedFallback = await UIApplication.shared.open(fallback)
+            if !openedFallback { errorMessage = "Couldn't open iPhone Settings. Open Settings and find Gate to change notification permissions." }
+        }
     }
 
     func saveSelection(_ newSelection: FamilyActivitySelection) -> Bool {

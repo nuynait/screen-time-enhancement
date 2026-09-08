@@ -20,7 +20,7 @@ struct HomeView: View {
                     if !model.authorized { authorization }
                     if model.apps.isEmpty { emptySelection }
                     else { appList }
-                    if !GateHandoff.opensAppDirectly && model.authorized && !model.isDemo {
+                    if model.authorized && model.needsNotificationPermission {
                         handoffHelp
                     }
                     Text("A little effort. A deliberate choice.")
@@ -187,10 +187,15 @@ struct HomeView: View {
     private var handoffHelp: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Opening a calculation", systemImage: "bell.badge").font(.subheadline.weight(.semibold))
-            Text("On the blocked screen, tap Prepare calculation. Then tap Gate's notification, or open Gate from your Home Screen.")
+                .accessibilityIdentifier("notification-guidance")
+            Text(model.notificationAuthorization == .denied
+                 ? "Notifications are off. Enable them in iPhone Settings to open calculations from a notification. You can also open Gate from your Home Screen."
+                 : "Allow notifications so you can tap Prepare calculation on a blocked app, then tap Gate's notification to solve it. You can also open Gate from your Home Screen.")
                 .font(.subheadline).foregroundStyle(GateTheme.muted)
             Button("Allow challenge notifications") { Task { await model.allowNotifications() } }
                 .font(.subheadline.weight(.semibold)).padding(.vertical, 6)
+                .disabled(model.isUpdatingNotifications)
+                .accessibilityIdentifier("allow-notifications")
         }
     }
 

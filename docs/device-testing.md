@@ -21,6 +21,11 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Direct handoff, compatible SDK + iOS 26.5+ | Solve button opens Gate for exactly the tapped app | Not run |
 | Fallback handoff | Prepare closes app; notification tap opens its challenge | Not run |
 | Notifications denied | Opening Gate manually still shows prepared challenge | Not run |
+| First notification request after Screen Time setup | System prompt appears once on notification-based builds; direct-opening builds do not request it | Not run |
+| Allow notification permission | Home's Opening a calculation block disappears | Not run |
+| Decline first notification request | Guidance remains; no immediate Settings redirect or extra error alert | Not run |
+| Tap Allow challenge notifications after denial | Opens Gate's notification settings instead of repeating the system prompt | Not run |
+| Turn notifications off/on in Settings, then return | Home guidance appears/disappears to match the latest permission | Not run |
 | Wrong answer | Shield remains; challenge explains retry | Not run |
 | Cancel or swipe challenge away | No grant or unshield operation occurs | Not run |
 | Change Settings → Unlock time, then relaunch Gate | Choice persists; a new calculation offers the chosen duration | Not run |
@@ -45,7 +50,7 @@ Record actual times for expiry, including any OS callback delay. Apple's minimum
 ## Verification recorded on 2026-09-08
 
 - Xcode 26.3 / iOS 26.2 SDK built the notification/manual handoff.
-- All 13 core tests, 3 simulator state/API tests, and 3 simulator UI flows passed, including configurable duration and old-state compatibility.
+- All 13 core tests, 3 simulator state/API tests, and 4 simulator UI flows passed, including configurable duration, old-state compatibility, and notification permission/Settings handoff. The notification test also passed with Allow on a separate fresh install. The simulator opens Settings but does not expose per-app notification toggles.
 - A signed Debug build succeeded with automatic development provisioning. The app and all three extensions contained Family Controls and a matching App Group in both signatures and provisioning profiles.
 - Physical-device enforcement has not been verified. The checklist above remains open.
 

@@ -31,8 +31,16 @@ struct SettingsView: View {
                     if !model.authorized {
                         Button("Allow Screen Time access") { Task { await model.authorize() } }
                     }
-                    if !GateHandoff.opensAppDirectly {
-                        Button("Allow challenge notifications") { Task { await model.allowNotifications() } }
+                    if model.usesNotificationHandoff, model.notificationAuthorization != nil {
+                        if !model.canManageNotifications {
+                            Label("Challenge notifications allowed", systemImage: "bell.badge")
+                        } else {
+                            Button(model.needsNotificationPermission ? "Allow challenge notifications" : "Notification settings") {
+                                Task { await model.allowNotifications() }
+                            }
+                            .disabled(model.isUpdatingNotifications)
+                            .accessibilityIdentifier("manage-notifications")
+                        }
                     }
                     Button("Open iPhone Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
