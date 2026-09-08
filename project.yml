@@ -107,7 +107,10 @@ targets:
   GateUITests:
     type: bundle.ui-testing
     platform: iOS
-    sources: [UITests]
+    sources:
+      - UITests
+      - Core
+      - Shared/GateState.swift
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1"

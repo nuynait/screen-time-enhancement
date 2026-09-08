@@ -40,6 +40,7 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Settings", systemImage: "slider.horizontal.3") { showingSettings = true }
                         .labelStyle(.iconOnly)
+                        .accessibilityIdentifier("settings")
                 }
             }
             .sheet(isPresented: $showingPicker) {
@@ -92,7 +93,7 @@ struct HomeView: View {
             Text("A pause before\nthe scroll.")
                 .font(.system(size: 39, weight: .bold, design: .rounded))
                 .tracking(-1.2).fixedSize(horizontal: false, vertical: true)
-            Text("Solve one multiplication to earn 15 minutes in an app.")
+            Text("Solve one multiplication to earn \(model.unlockDuration.title) in an app.")
                 .font(.body).foregroundStyle(GateTheme.muted).lineSpacing(4)
             HStack(spacing: 12) {
                 Image(systemName: "multiply").font(.title3.weight(.semibold))
@@ -155,6 +156,8 @@ struct HomeView: View {
                                 .font(.system(.body, design: .rounded, weight: .semibold))
                                 .monospacedDigit().foregroundStyle(GateTheme.blue)
                                 .frame(width: 62).accessibilityLabel("Time remaining")
+                                .accessibilityValue(Text(timerInterval: grant.issuedAt...grant.expiresAt, countsDown: true))
+                                .accessibilityIdentifier("countdown-\(app.id.uuidString)")
                         } else {
                             Button("Solve") { model.beginChallenge(for: app) }
                                 .font(.subheadline.weight(.semibold))

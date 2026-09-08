@@ -6,7 +6,7 @@
 
 <p align="center"><strong>A little math before another scroll.</strong></p>
 
-<p align="center">An iPhone app that makes distracting apps take a little more effort to open.<br>Solve a two-digit multiplication problem. Earn 15 minutes in one app.</p>
+<p align="center">An iPhone app that makes distracting apps take a little more effort to open.<br>Solve a two-digit multiplication problem. Earn a window in one app.</p>
 
 <p align="center"><a href="#try-it-in-the-simulator">Try the preview</a> · <a href="#install-on-your-iphone">Install on iPhone</a> · <a href="docs/design-log.md">How it works</a> · <a href="LICENSE">MIT license</a></p>
 
@@ -16,7 +16,7 @@
 | :---: | :---: | :---: |
 | <a href="docs/screenshots/home.png"><img src="docs/screenshots/home.png" width="260" alt="Gate's app list showing Rednote and Bilibili, each with a Solve button"></a> | <a href="docs/screenshots/challenge.png"><img src="docs/screenshots/challenge.png" width="260" alt="A 47 times 63 multiplication challenge with an answer field and Unlock for 15 minutes button"></a> | <a href="docs/screenshots/unlocked.png"><img src="docs/screenshots/unlocked.png" width="260" alt="Correct answer accepted, showing an open window for Rednote and a countdown"></a> |
 
-*Actual simulator screenshots with sample apps. Tap a screenshot for full size. Preview mode does not block or unlock real apps.*
+*Actual simulator screenshots with sample apps and the default 15-minute window. Tap a screenshot for full size. Preview mode does not block or unlock real apps.*
 
 <details>
 <summary>See dark mode</summary>
@@ -29,10 +29,16 @@
 1. **Choose your distractions.** Grant Screen Time access and select up to 12 individual apps using Apple's app picker.
 2. **Pause at the door.** Opening a protected app brings up an iOS blocking screen. Start a calculation from there, or from Gate's app list.
 3. **Solve to unlock.** One correct answer to a random two-digit × two-digit problem grants access to **that app only**. A wrong answer or cancellation grants nothing.
-4. **Use your window.** The 15 minutes start when you answer correctly. You can leave and reopen the app during that window; time continues while you use other apps or lock your phone.
+4. **Use your window.** Your chosen duration starts when you answer correctly. You can leave and reopen the app during that window; time continues while you use other apps or lock your phone.
 5. **Block again.** A Screen Time extension reapplies the block when the window expires. You can also end the window early with **Lock now**.
 
 No account, server, analytics, ads, subscriptions, or AI. App selection tokens and unlock dates stay on your phone. Practice calculations never change app access.
+
+### Choose your unlock time
+
+Open **Settings → Unlock time** to choose **1, 3, 5, 10, 15, 30, or 60 minutes**. The default is **15 minutes**. Your choice is saved on the phone and applies to new calculations for any protected app. Existing windows keep their original end time.
+
+<a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" width="300" alt="Gate Settings in the simulator preview, with Unlock time set to 5 minutes"></a>
 
 **Status:** an early, open-source build under the MIT license. Core tests and simulator flows pass, and development signing has been verified. **Real-device blocking, handoff, and background expiry still need acceptance testing.** There is no App Store download or prebuilt signed app in this repository.
 
@@ -126,7 +132,7 @@ You can also build a signed development app from the command line:
 
 This allows Xcode to update development provisioning. It builds the app but does not install it automatically.
 
-Before relying on the gate, follow the [physical-device checklist](docs/device-testing.md), including a full 15-minute window while Gate is backgrounded. For TestFlight or App Store distribution, Apple requires [Family Controls distribution approval](https://developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement) for the app and each Screen Time extension.
+Before relying on the gate, follow the [physical-device checklist](docs/device-testing.md), including short and default 15-minute windows while Gate is backgrounded. For TestFlight or App Store distribution, Apple requires [Family Controls distribution approval](https://developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement) for the app and each Screen Time extension.
 
 ## Limits to understand
 
@@ -138,13 +144,13 @@ Before relying on the gate, follow the [physical-device checklist](docs/device-t
 ## Development
 
 ```bash
-./scripts/test.sh             # 11 core policy and persistence tests
+./scripts/test.sh             # Core policy and persistence tests
 ./scripts/build.sh            # Unsigned simulator app + three extensions
 ./scripts/test-ui.sh          # Simulator interaction tests; auto-selects an iPhone
 swift scripts/generate-icon.swift
 ```
 
-Core tests cover answer validation, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. UI tests cover a wrong answer, a correct answer, cancellation, and early locking. They use a deterministic calculation in an explicit Debug preview.
+Core tests cover answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. Simulator tests cover saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for changing duration, wrong/correct answers, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
 
 | Directory | Purpose |
 | --- | --- |

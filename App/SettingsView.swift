@@ -10,7 +10,18 @@ struct SettingsView: View {
                 Section("Your gate") {
                     LabeledContent("Challenge", value: "Two digits × two digits")
                     LabeledContent("Correct answers needed", value: "1")
-                    LabeledContent("Unlock window", value: "15 minutes")
+                    Picker("Unlock time", selection: Binding(
+                        get: { model.unlockDuration },
+                        set: { model.setUnlockDuration($0) }
+                    )) {
+                        ForEach(UnlockDuration.allCases) { duration in
+                            Text(duration.title).tag(duration)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .accessibilityIdentifier("unlock-duration-picker")
+                    Text("Applies to new calculations. Existing windows keep their end time.")
+                        .font(.subheadline).foregroundStyle(.secondary)
                     Text("Each window applies to one app. Time keeps passing when you switch apps or lock your phone.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }

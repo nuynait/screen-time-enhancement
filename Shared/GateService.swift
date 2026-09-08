@@ -18,6 +18,11 @@ final class GateService {
 
     func read() throws -> GateState { try storage.read() }
 
+    func setUnlockDuration(_ duration: UnlockDuration) throws -> GateState {
+        // A preference edit must not reschedule or revoke any existing grant.
+        try storage.update { $0.unlockDuration = duration }
+    }
+
     @discardableResult
     func reconcile(at now: Date = Date()) throws -> GateState {
         let state = try mutate(at: now) { _ in }
@@ -55,10 +60,10 @@ final class GateService {
         _ = try storage.update { $0.pendingChallenge = nil }
     }
 
-    func unlock(appID: UUID, now: Date = Date()) throws -> GateState {
+    func unlock(appID: UUID, duration: UnlockDuration, now: Date = Date()) throws -> GateState {
         try requireAuthorization()
         _ = try reconcile(at: now)
-        let grant = UnlockGrant(appID: appID, now: now)
+        let grant = UnlockGrant(appID: appID, duration: duration, now: now)
         let name = DeviceActivityName(grant.activityName)
         let bounds = UnlockSchedule(grant: grant)
         let schedule = DeviceActivitySchedule(intervalStart: bounds.start, intervalEnd: bounds.end, repeats: false)

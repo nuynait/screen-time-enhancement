@@ -14,6 +14,7 @@ struct ChallengeSession: Identifiable {
     let id = UUID()
     let app: AppRow?
     let problem: MultiplicationChallenge
+    let unlockDuration: UnlockDuration
 }
 
 @MainActor
@@ -49,6 +50,18 @@ final class GateModel: ObservableObject {
 
     var apps: [AppRow] {
         isDemo ? demoApps : state.apps.map { .init(id: $0.id, token: $0.token, demoName: nil) }
+    }
+
+    var unlockDuration: UnlockDuration { state.unlockDuration }
+
+    func setUnlockDuration(_ duration: UnlockDuration) {
+        do {
+            if isDemo { state.unlockDuration = duration }
+            else {
+                guard let service else { throw GateError.missingAppGroup }
+                state = try service.setUnlockDuration(duration)
+            }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func refresh() {
@@ -111,7 +124,8 @@ final class GateModel: ObservableObject {
         #else
         problem = .random()
         #endif
-        challenge = ChallengeSession(app: app, problem: problem)
+        // Freeze the displayed duration so the accepted answer grants exactly what this screen offered.
+        challenge = ChallengeSession(app: app, problem: problem, unlockDuration: unlockDuration)
     }
 
     func grant(for appID: UUID) -> UnlockGrant? {
@@ -122,13 +136,13 @@ final class GateModel: ObservableObject {
         guard challenge?.id == session.id, session.problem.accepts(answer) else { return nil }
         guard let app = session.app else { return Date() }
         if isDemo {
-            let grant = UnlockGrant(appID: app.id)
+            let grant = UnlockGrant(appID: app.id, duration: session.unlockDuration)
             state.grants.removeAll { $0.appID == app.id }
             state.grants.append(grant)
             return grant.expiresAt
         }
         guard let service else { throw GateError.missingAppGroup }
-        state = try service.unlock(appID: app.id)
+        state = try service.unlock(appID: app.id, duration: session.unlockDuration)
         return grant(for: app.id)?.expiresAt
     }
 

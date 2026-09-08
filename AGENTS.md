@@ -13,7 +13,7 @@ The app and all three extensions share `Core/` and `Shared/`. Persist through `L
 Keep these properties:
 
 - Register a Device Activity expiry before removing a shield. Scheduling failure must grant no access.
-- A grant belongs to exactly one app and lasts 900 seconds of elapsed wall-clock time.
+- A grant belongs to exactly one app and preserves the duration offered when its calculation opened. The default is 15 minutes; changing preferences never rewrites active grants.
 - Each grant gets its own monitor name; a late callback must preserve newer active grants.
 - Never call `startMonitoring` or `stopMonitoring` while holding the shared file lock; the OS may call the extension synchronously.
 - Use explicit application tokens only. Category and website selection is unsupported and must be rejected visibly.

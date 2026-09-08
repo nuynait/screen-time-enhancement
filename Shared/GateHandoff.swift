@@ -19,7 +19,7 @@ enum GateHandoff {
         #endif
         let content = UNMutableNotificationContent()
         content.title = "Your calculation is ready"
-        content.body = "Tap to open Gate and earn 15 minutes."
+        content.body = "Tap to open Gate and solve your calculation."
         content.sound = .default
         let request = UNNotificationRequest(identifier: "gate.pending-challenge", content: content, trigger: nil)
         // If notifications are disabled, the shield also explains how to open Gate manually.

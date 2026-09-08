@@ -37,6 +37,31 @@ final class GateCoreTests: XCTestCase {
         XCTAssertFalse(grant.isActive(at: now.addingTimeInterval(-1)))
     }
 
+    func testEveryDurationExpiresIndependentlyAtItsChosenTime() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let otherApp = UUID()
+        for duration in UnlockDuration.allCases {
+            let app = UUID()
+            let grant = UnlockGrant(appID: app, duration: duration, now: now)
+            XCTAssertEqual(grant.expiresAt.timeIntervalSince(now), duration.seconds)
+            XCTAssertTrue(grant.isActive(at: grant.expiresAt.addingTimeInterval(-0.001)))
+            XCTAssertFalse(grant.isActive(at: grant.expiresAt))
+            XCTAssertEqual(GrantPolicy.blockedIDs(selectedIDs: [app, otherApp], grants: [grant], at: now), [otherApp])
+        }
+    }
+
+    func testDurationEncodingAndUnsupportedValues() throws {
+        for duration in UnlockDuration.allCases {
+            let data = try JSONEncoder().encode(duration)
+            XCTAssertEqual(String(decoding: data, as: UTF8.self), String(duration.rawValue))
+            XCTAssertEqual(try JSONDecoder().decode(UnlockDuration.self, from: data), duration)
+        }
+        for unsupported in [0, -1, 999] {
+            XCTAssertEqual(try JSONDecoder().decode(UnlockDuration.self, from: Data(String(unsupported).utf8)), .defaultValue)
+        }
+        XCTAssertThrowsError(try JSONDecoder().decode(UnlockDuration.self, from: Data("\"bad\"".utf8)))
+    }
+
     func testSchedulePreservesAbsoluteExpiryAcrossMidnightAndDST() throws {
         let parser = ISO8601DateFormatter()
         let dates = ["2026-09-08T23:59:59Z", "2026-03-08T06:59:59Z", "2026-11-01T05:59:59Z"]
@@ -44,14 +69,16 @@ final class GateCoreTests: XCTestCase {
         localCalendar.timeZone = TimeZone(identifier: "America/Toronto")!
         for input in dates {
             let now = try XCTUnwrap(parser.date(from: input)).addingTimeInterval(0.456)
-            let grant = UnlockGrant(appID: UUID(), now: now)
-            let bounds = UnlockSchedule(grant: grant)
-            let start = try XCTUnwrap(localCalendar.date(from: bounds.start))
-            let end = try XCTUnwrap(localCalendar.date(from: bounds.end))
-            XCTAssertLessThanOrEqual(start, now)
-            XCTAssertGreaterThanOrEqual(end.timeIntervalSince(start), 900)
-            XCTAssertGreaterThanOrEqual(end, grant.expiresAt)
-            XCTAssertLessThan(end.timeIntervalSince(grant.expiresAt), 1)
+            for duration in UnlockDuration.allCases {
+                let grant = UnlockGrant(appID: UUID(), duration: duration, now: now)
+                let bounds = UnlockSchedule(grant: grant)
+                let start = try XCTUnwrap(localCalendar.date(from: bounds.start))
+                let end = try XCTUnwrap(localCalendar.date(from: bounds.end))
+                XCTAssertLessThanOrEqual(start, now)
+                XCTAssertGreaterThanOrEqual(end.timeIntervalSince(start), 900)
+                XCTAssertGreaterThanOrEqual(end, grant.expiresAt)
+                XCTAssertLessThan(end.timeIntervalSince(grant.expiresAt), 1)
+            }
         }
     }
 

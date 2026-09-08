@@ -17,6 +17,13 @@ struct GateState: Codable {
     var apps: [GuardedApp] = []
     var grants: [UnlockGrant] = []
     var pendingChallenge: PendingChallenge?
+    // Optional on disk so existing v1 files decode without losing selections or active grants.
+    var unlockDurationMinutes: UnlockDuration?
+
+    var unlockDuration: UnlockDuration {
+        get { unlockDurationMinutes ?? .defaultValue }
+        set { unlockDurationMinutes = newValue }
+    }
 
     mutating func removeExpiredGrants(at now: Date) {
         grants = GrantPolicy.active(grants, selectedIDs: Set(apps.map(\.id)), at: now)
@@ -38,7 +45,7 @@ enum GateError: LocalizedError {
         case .individualAppsOnly: return "Choose individual apps inside each category. Whole categories and websites aren't supported yet."
         case .tooManyApps: return "Choose up to 12 apps so each one can have its own unlock timer."
         case .appRemoved: return "This app is no longer in your protected list. Choose it again to continue."
-        case .alreadyUnlocked: return "This app already has an active 15-minute window."
+        case .alreadyUnlocked: return "This app already has an active unlock window."
         }
     }
 }

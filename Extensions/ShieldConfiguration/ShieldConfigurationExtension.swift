@@ -7,8 +7,8 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         let ink = UIColor(red: 0.13, green: 0.25, blue: 0.42, alpha: 1)
         let blue = UIColor(red: 0.18, green: 0.35, blue: 0.76, alpha: 1)
         let subtitle = GateHandoff.opensAppDirectly
-            ? "One calculation. Then 15 minutes for \(application.localizedDisplayName ?? "this app")."
-            : "Prepare a calculation, then open Gate from its notification or Home Screen. A correct answer earns 15 minutes."
+            ? "Solve a calculation to earn a window for \(application.localizedDisplayName ?? "this app"). Choose the unlock time in Gate."
+            : "Prepare a calculation, then open Gate from its notification or Home Screen. Choose the unlock time in Gate."
         return ShieldConfiguration(
             backgroundBlurStyle: .systemThinMaterialLight,
             backgroundColor: UIColor(red: 0.93, green: 0.96, blue: 1, alpha: 1),

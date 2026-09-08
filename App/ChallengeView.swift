@@ -39,7 +39,7 @@ struct ChallengeView: View {
             Text("Take a moment.\nWork it out.")
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text(session.app == nil ? "A practice round. No apps will be unlocked." : "One correct answer opens this app for 15 minutes.")
+            Text(session.app == nil ? "A practice round. No apps will be unlocked." : "One correct answer opens this app for \(session.unlockDuration.title).")
                 .font(.body).foregroundStyle(GateTheme.muted)
             VStack(spacing: 18) {
                 Text("\(session.problem.left) × \(session.problem.right)")
@@ -67,7 +67,7 @@ struct ChallengeView: View {
                 Text(feedback).font(.subheadline).foregroundStyle(.red)
                     .accessibilityIdentifier("answer-feedback")
             }
-            Button(session.app == nil ? "Check answer" : "Unlock for 15 minutes", action: submit)
+            Button(session.app == nil ? "Check answer" : "Unlock for \(session.unlockDuration.title)", action: submit)
                 .buttonStyle(GateButtonStyle()).disabled(answer.isEmpty)
                 .accessibilityIdentifier("submit-answer")
             Button("Keep it closed") { dismiss() }
@@ -93,6 +93,7 @@ struct ChallengeView: View {
                 Text(timerInterval: Date()...max(Date(), date), countsDown: true)
                     .font(.system(size: 48, weight: .medium, design: .rounded)).monospacedDigit()
                     .foregroundStyle(GateTheme.blue)
+                    .accessibilityIdentifier("unlock-countdown")
                 if model.isDemo {
                     Text("Preview only. No access settings have changed.")
                         .font(.footnote).foregroundStyle(GateTheme.muted)

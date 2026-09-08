@@ -1,6 +1,6 @@
 # Physical-device acceptance
 
-Simulator UI tests use an explicitly labeled preview. They never assert real blocking or scheduling.
+Simulator UI tests use an explicitly labeled preview. They never assert real blocking or monitor registration. A separate simulator test checks Apple's schedule date resolution without requesting Screen Time access.
 
 ## Prerequisites
 
@@ -23,12 +23,16 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Notifications denied | Opening Gate manually still shows prepared challenge | Not run |
 | Wrong answer | Shield remains; challenge explains retry | Not run |
 | Cancel or swipe challenge away | No grant or unshield operation occurs | Not run |
+| Change Settings → Unlock time, then relaunch Gate | Choice persists; a new calculation offers the chosen duration | Not run |
 | Correct answer | Only the chosen app opens; other app stays blocked | Not run |
+| Change duration during an active window | Its end time remains unchanged; a new calculation uses the new preference | Not run |
 | Leave/reopen unlocked app | No new challenge during its current window | Not run |
-| Remain in target for full 15 minutes | Shield returns without foregrounding Gate | Not run |
+| Remain in target for 1-minute and 5-minute windows | Shield returns at each chosen expiry without foregrounding Gate | Not run |
+| Remain in target for a default 15-minute window | Shield returns without foregrounding Gate | Not run |
+| Use a 30-minute or 60-minute window | Countdown and background expiry match the selected duration | Not run |
 | Force-quit Gate after unlocking | System extension still reapplies shield after expiry | Not run |
 | Lock phone across expiry | App is shielded on resuming device use | Not run |
-| Close/relaunch Gate during a window | Remaining time survives; no fresh 15-minute reset | Not run |
+| Close/relaunch Gate during a window | Remaining time survives; no timer reset | Not run |
 | Lock now | Immediate shield; late old callback does not affect a later grant | Not run |
 | Unlock both apps at different times | Each expires independently | Not run |
 | Remove selected app | Its shield is removed and old grants/monitors are pruned | Not run |
@@ -36,12 +40,12 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Midnight / timezone change | Stored expiration stays absolute; no day-long unlock | Not run |
 | Reboot during unlock | Observe callback behavior and confirm expired grants relock | Not run |
 
-Record actual times for expiry, including any OS callback delay. Do not shorten the monitor schedule below 15 minutes to speed up this check: Apple rejects it. If the expiry callback is unreliable on the target OS, treat that as an implementation issue to investigate before relying on Gate, not a passed test.
+Record actual times for expiry, including any OS callback delay. Apple's minimum **monitor interval** is 15 minutes. For shorter unlocks, Gate pads the interval's start into the past while retaining the chosen expiry; the app only unshields after the correct answer and successful registration. The date-resolution test cannot prove that the OS delivers those callbacks on a phone. Verify short windows explicitly. If the expiry callback is unreliable on the target OS, investigate before relying on Gate.
 
 ## Verification recorded on 2026-09-08
 
 - Xcode 26.3 / iOS 26.2 SDK built the notification/manual handoff.
-- All 11 core tests and both simulator UI tests passed.
+- All 13 core tests, 3 simulator state/API tests, and 3 simulator UI flows passed, including configurable duration and old-state compatibility.
 - A signed Debug build succeeded with automatic development provisioning. The app and all three extensions contained Family Controls and a matching App Group in both signatures and provisioning profiles.
 - Physical-device enforcement has not been verified. The checklist above remains open.
 

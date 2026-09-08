@@ -26,6 +26,14 @@
 
 Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and parental management are outside this first version.
 
+## Configurable unlock time
+
+- [x] Settings menu with 1, 3, 5, 10, 15, 30, and 60 minutes; default to 15.
+- [x] Persist the preference without changing existing grants or losing old saved state.
+- [x] Use the duration offered by each calculation for its grant and countdown.
+- [x] Test duration changes, persistence, legacy state, and schedule dates; inspect the Settings screenshot and build all four targets for simulator and signed iPhone development.
+- [ ] Verify short-window background expiry on a physical iPhone.
+
 ## Public repository
 
 - [x] Generic public bundle defaults and ignored local signing overrides.
