@@ -51,3 +51,11 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and p
 - [x] Refresh the OS permission on returning to Gate.
 - [x] Verify fresh Allow/Don't Allow prompts, conditional guidance, and Settings handoff in the simulator; inspect screenshots and build the signed iPhone app.
 - [ ] Verify toggling notification permission in Settings and returning on a physical iPhone.
+
+## Settings presentation
+
+- [x] Remove the decorative top-left multiplication icon from the home screen.
+- [x] Present How it works as three numbered steps with a practice action.
+- [x] Present privacy details as short titled points with descriptive icons.
+- [x] Stack the explanation rows vertically at accessibility text sizes.
+- [x] Check the existing UI flows and inspect light, dark, and large-text captures.

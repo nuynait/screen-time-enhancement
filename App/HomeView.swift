@@ -34,9 +34,6 @@ struct HomeView: View {
             .navigationTitle("Gate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Image(systemName: "multiply.circle.fill").foregroundStyle(GateTheme.blue).accessibilityHidden(true)
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Settings", systemImage: "slider.horizontal.3") { showingSettings = true }
                         .labelStyle(.iconOnly)

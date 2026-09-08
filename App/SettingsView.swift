@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var model: GateModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .subheadline) private var markerSize = 30
 
     var body: some View {
         NavigationStack {
@@ -46,23 +48,8 @@ struct SettingsView: View {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
-                Section("How it works") {
-                    Text(GateHandoff.opensAppDirectly
-                         ? "Open a protected app and tap Solve to unlock. Gate opens with a calculation for that app."
-                         : "Open a protected app and tap Prepare calculation. Tap Gate's notification or open Gate from your Home Screen to solve it.")
-                    Text("After a correct answer, return to the app using the app switcher or Home Screen. Gate restores its block when the window ends; iOS controls the timing of that update.")
-                    Text("You can also start a calculation from Your apps in Gate.")
-                }
-                Section("Your data stays here") {
-                    Text("Gate has no account, server, analytics, or AI. Calculations and answers stay on your phone. Apple supplies private tokens for the apps you select.")
-                    Text("You're in control. You can remove apps from Gate, revoke Screen Time access, or delete Gate in Settings.")
-                }
-                Section {
-                    Button("Try a practice calculation") {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { model.beginChallenge(for: nil) }
-                    }
-                }
+                walkthrough
+                privacy
             }
             .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -70,5 +57,102 @@ struct SettingsView: View {
                 Button("OK") { model.errorMessage = nil }
             } message: { Text(model.errorMessage ?? "") }
         }
+    }
+
+    private var walkthrough: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 24) {
+                step(1, title: "Open a protected app", detail: GateHandoff.opensAppDirectly
+                     ? "Tap Solve to unlock on the blocking screen to open Gate."
+                     : "Tap Prepare calculation, then open Gate from its notification or Home Screen.")
+                step(2, title: "Work it out", detail: "Solve one multiplication to earn \(model.unlockDuration.title) in that app.")
+                step(3, title: "Use your window", detail: "Return using the app switcher or Home Screen. Gate blocks the app again when time is up.")
+            }
+            .padding(.vertical, 10)
+            .listRowSeparator(.hidden)
+
+            Button(action: practice) {
+                Label("Try a practice calculation", systemImage: "pencil")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(GateTheme.blue)
+                    .padding(.vertical, 6)
+            }
+        } header: {
+            informationHeading("How it works")
+        } footer: {
+            Text("You can also tap Solve in Your apps. iOS controls the exact time the block returns.")
+                .font(.footnote).lineSpacing(3)
+        }
+    }
+
+    private var privacy: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 24) {
+                privacyPoint("iphone", title: "Saved on your iPhone", detail: "Your app choices and unlock windows stay on this device.")
+                privacyPoint("eye.slash", title: "No account or tracking", detail: "No server, analytics, or AI. Calculations happen on your phone.")
+                privacyPoint("hand.raised", title: "You're in control", detail: "Remove apps, change Screen Time access, or delete Gate whenever you want.")
+            }
+            .padding(.vertical, 10)
+            .listRowSeparator(.hidden)
+        } header: {
+            informationHeading("Your data stays here")
+        }
+    }
+
+    private func informationHeading(_ title: String) -> some View {
+        Text(title)
+            .font(.system(.title3, design: .rounded, weight: .semibold))
+            .foregroundStyle(GateTheme.ink)
+            .textCase(nil)
+            .padding(.top, 8).padding(.bottom, 6)
+    }
+
+    private func step(_ number: Int, title: String, detail: String) -> some View {
+        explanationLayout {
+            Text(String(number))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(GateTheme.blue)
+                .frame(width: markerSize, height: markerSize)
+                .background(GateTheme.blue.opacity(0.09), in: Circle())
+            explanation(title: title, detail: detail)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func privacyPoint(_ symbol: String, title: String, detail: String) -> some View {
+        explanationLayout {
+            Image(systemName: symbol)
+                .font(.system(.body, weight: .medium))
+                .foregroundStyle(GateTheme.blue)
+                .frame(width: markerSize, height: markerSize)
+                .accessibilityHidden(true)
+            explanation(title: title, detail: detail)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var explanationLayout: AnyLayout {
+        if dynamicTypeSize.isAccessibilitySize {
+            return AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+        }
+        return AnyLayout(HStackLayout(alignment: .top, spacing: 14))
+    }
+
+    private func explanation(title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(.body, design: .rounded, weight: .semibold))
+                .foregroundStyle(GateTheme.ink)
+            Text(detail)
+                .font(.subheadline).foregroundStyle(GateTheme.muted)
+                .lineSpacing(3)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func practice() {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { model.beginChallenge(for: nil) }
     }
 }

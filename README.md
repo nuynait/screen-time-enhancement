@@ -40,6 +40,15 @@ Open **Settings → Unlock time** to choose **1, 3, 5, 10, 15, 30, or 60 minutes
 
 <a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" width="300" alt="Gate Settings in the simulator preview, with Unlock time set to 5 minutes"></a>
 
+Settings also includes a three-step guide with a practice calculation, followed by short explanations of where your data stays and what you control.
+
+<details>
+<summary>See the guide and privacy notes</summary>
+<p>Actual simulator screenshots with sample app data.</p>
+<img src="docs/screenshots/settings-guide.png" width="300" alt="How it works in Settings: three numbered steps for opening an app, solving a calculation, and using an unlock window">
+<img src="docs/screenshots/settings-privacy.png" width="300" alt="Your data stays here in Settings: saved on your iPhone, no account or tracking, and control over protected apps">
+</details>
+
 **Status:** an early, open-source build under the MIT license. Core tests and simulator flows pass, and development signing has been verified. **Real-device blocking, handoff, and background expiry still need acceptance testing.** There is no App Store download or prebuilt signed app in this repository.
 
 ## How the blocking screen opens Gate
