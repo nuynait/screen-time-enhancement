@@ -1,0 +1,4 @@
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+// Replace "yourname" with a unique namespace you control before signing.
+GATE_BUNDLE_ID = com.yourname.gate
+GATE_APP_GROUP = group.$(GATE_BUNDLE_ID)

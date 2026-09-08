@@ -1,0 +1,8 @@
+// Public defaults support unsigned simulator builds. Choose a unique ID for device signing.
+GATE_BUNDLE_ID = com.example.screentimeenhancement
+GATE_APP_GROUP = group.$(GATE_BUNDLE_ID)
+
+// generate.sh detects whether the selected SDK can compile the iOS 26.5 handoff.
+#include? "SDK.xcconfig"
+// Local overrides must come after defaults.
+#include? "Local.xcconfig"

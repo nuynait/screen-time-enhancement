@@ -1,0 +1,44 @@
+# macOS / editors
+.DS_Store
+._*
+*~
+*.swp
+.idea/
+.vscode/
+
+# Build products, generated projects, and per-user Xcode state
+.build/
+.swiftpm/
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.xcresult/
+*.xcarchive/
+*.ipa
+*.dSYM/
+*.dSYM.zip
+*.log
+__pycache__/
+*.py[cod]
+
+# Machine-local SDK detection, signing, generated Info.plists, and notes
+Config/SDK.xcconfig
+Config/Local.xcconfig
+Config/*-Info.plist
+.local/
+
+# Credentials and signing material (the app itself needs no API keys)
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
