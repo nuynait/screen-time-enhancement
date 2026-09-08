@@ -11,10 +11,26 @@ struct AppRow: Identifiable {
 }
 
 struct ChallengeSession: Identifiable {
+    enum Destination {
+        case app(AppRow), practice, settings
+    }
+
     let id = UUID()
-    let app: AppRow?
-    let problem: MultiplicationChallenge
+    let destination: Destination
+    let problem: CalculationChallenge
+    let calculationSettings: CalculationSettings
     let unlockDuration: UnlockDuration
+    let wasRefreshed: Bool
+
+    var app: AppRow? {
+        if case .app(let app) = destination { return app }
+        return nil
+    }
+
+    var isSettingsGate: Bool {
+        if case .settings = destination { return true }
+        return false
+    }
 }
 
 @MainActor
@@ -30,6 +46,8 @@ final class GateModel: ObservableObject {
     let isDemo: Bool
     private let testsNotifications: Bool
     private var service: GateService?
+    private var challengeToRefresh: UUID?
+    private var completedChallengeID: UUID?
     private let demoApps = [
         AppRow(id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, token: nil, demoName: "Rednote"),
         AppRow(id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, token: nil, demoName: "Bilibili")
@@ -60,6 +78,17 @@ final class GateModel: ObservableObject {
     }
 
     var unlockDuration: UnlockDuration { state.unlockDuration }
+    var calculationSettings: CalculationSettings { state.calculationSettings }
+
+    func setCalculationSettings(_ preferences: CalculationSettings) {
+        do {
+            if isDemo { state.calculationSettings = preferences }
+            else {
+                guard let service else { throw GateError.missingAppGroup }
+                state = try service.setCalculationSettings(preferences)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
 
     var usesNotificationHandoff: Bool { testsNotifications || !GateHandoff.opensAppDirectly }
     var canManageNotifications: Bool { !isDemo || testsNotifications }
@@ -155,19 +184,49 @@ final class GateModel: ObservableObject {
     }
 
     func beginChallenge(for app: AppRow?) {
-        guard app == nil || authorized else {
+        beginChallenge(destination: app.map { .app($0) } ?? .practice)
+    }
+
+    func beginSettingsChallenge() {
+        beginChallenge(destination: .settings)
+    }
+
+    private func beginChallenge(destination: ChallengeSession.Destination) {
+        if case .app = destination, !authorized {
             errorMessage = GateError.authorizationRequired.localizedDescription
             return
         }
-        let problem: MultiplicationChallenge
+        let problem: CalculationChallenge
         #if DEBUG
         problem = ProcessInfo.processInfo.arguments.contains("--uitesting")
-            ? .init(left: 47, right: 63) : .random()
+            ? calculationSettings.example : .random(settings: calculationSettings)
         #else
-        problem = .random()
+        problem = .random(settings: calculationSettings)
         #endif
         // Freeze the displayed duration so the accepted answer grants exactly what this screen offered.
-        challenge = ChallengeSession(app: app, problem: problem, unlockDuration: unlockDuration)
+        completedChallengeID = nil
+        challenge = ChallengeSession(destination: destination, problem: problem,
+                                     calculationSettings: calculationSettings, unlockDuration: unlockDuration,
+                                     wasRefreshed: false)
+    }
+
+    func leaveForeground() {
+        guard let session = challenge, completedChallengeID != session.id else {
+            challengeToRefresh = nil
+            return
+        }
+        // Also invalidate during an inactive transition (for example Control Center).
+        challengeToRefresh = session.id
+    }
+
+    func returnToForeground() {
+        defer { challengeToRefresh = nil }
+        guard let session = challenge, challengeToRefresh == session.id,
+              completedChallengeID != session.id else { return }
+        challenge = ChallengeSession(destination: session.destination,
+                                     problem: .replacing(session.problem, settings: session.calculationSettings),
+                                     calculationSettings: session.calculationSettings,
+                                     unlockDuration: session.unlockDuration, wasRefreshed: true)
     }
 
     func grant(for appID: UUID) -> UnlockGrant? {
@@ -175,16 +234,23 @@ final class GateModel: ObservableObject {
     }
 
     func submit(_ answer: String, for session: ChallengeSession) throws -> Date? {
-        guard challenge?.id == session.id, session.problem.accepts(answer) else { return nil }
-        guard let app = session.app else { return Date() }
+        guard challenge?.id == session.id, challengeToRefresh != session.id,
+              completedChallengeID != session.id, session.problem.accepts(answer) else { return nil }
+        // Practice and Settings access never create, extend, or revoke app grants.
+        guard let app = session.app else {
+            completedChallengeID = session.id
+            return Date()
+        }
         if isDemo {
             let grant = UnlockGrant(appID: app.id, duration: session.unlockDuration)
             state.grants.removeAll { $0.appID == app.id }
             state.grants.append(grant)
+            completedChallengeID = session.id
             return grant.expiresAt
         }
         guard let service else { throw GateError.missingAppGroup }
         state = try service.unlock(appID: app.id, duration: session.unlockDuration)
+        completedChallengeID = session.id
         return grant(for: app.id)?.expiresAt
     }
 

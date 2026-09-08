@@ -1,21 +1,5 @@
 import Foundation
 
-struct MultiplicationChallenge: Equatable {
-    let left: Int
-    let right: Int
-
-    static func random() -> Self {
-        Self(left: Int.random(in: 10...99), right: Int.random(in: 10...99))
-    }
-
-    func accepts(_ input: String) -> Bool {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.allSatisfy({ $0.isASCII && $0.isNumber }),
-              let answer = Int(trimmed) else { return false }
-        return answer == left * right
-    }
-}
-
 struct UnlockGrant: Codable, Equatable, Identifiable {
     static let activityPrefix = "gate.unlock."
     let id: UUID

@@ -19,6 +19,21 @@ struct GateState: Codable {
     var pendingChallenge: PendingChallenge?
     // Optional on disk so existing v1 files decode without losing selections or active grants.
     var unlockDurationMinutes: UnlockDuration?
+    var firstNumberDigits: CalculationDigits?
+    var secondNumberDigits: CalculationDigits?
+    var calculationOperation: CalculationOperation?
+
+    var calculationSettings: CalculationSettings {
+        get {
+            .init(firstDigits: firstNumberDigits ?? .two, secondDigits: secondNumberDigits ?? .two,
+                  operation: calculationOperation ?? .defaultValue)
+        }
+        set {
+            firstNumberDigits = newValue.firstDigits
+            secondNumberDigits = newValue.secondDigits
+            calculationOperation = newValue.operation
+        }
+    }
 
     var unlockDuration: UnlockDuration {
         get { unlockDurationMinutes ?? .defaultValue }

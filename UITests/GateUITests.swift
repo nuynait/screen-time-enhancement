@@ -2,6 +2,217 @@ import XCTest
 
 final class GateUITests: XCTestCase {
     @MainActor
+    func testLeavingEachChallengeRefreshesNumbersAndRejectsThePreviousAnswer() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        let otherApp = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        let first = "11111111-1111-1111-1111-111111111111"
+        let second = "22222222-2222-2222-2222-222222222222"
+        for destination in ["settings", "app", "practice"] {
+            switch destination {
+            case "settings": app.buttons["settings"].tap()
+            case "app": app.buttons["solve-" + first].tap()
+            default:
+                openSettings(app)
+                let practice = app.buttons["Try a practice calculation"]
+                for _ in 0..<8 where !practice.isHittable { app.swipeUp() }
+                practice.tap()
+            }
+            let problem = app.staticTexts["problem"]
+            XCTAssertTrue(problem.waitForExistence(timeout: 5))
+            let oldExpression = problem.label
+            let oldAnswer = answerToDisplayedCalculation(app)
+            let answer = app.textFields["answer"]
+            answer.tap()
+            answer.typeText(oldAnswer)
+            // Settings is present in the simulator; switching apps exercises the same lifecycle as Calculator.
+            otherApp.launch()
+            XCTAssertTrue(otherApp.wait(for: .runningForeground, timeout: 5))
+            app.activate()
+            expectation(for: NSPredicate(format: "exists == true AND label != %@", oldExpression), evaluatedWith: problem)
+            waitForExpectations(timeout: 5)
+            XCTAssertTrue(app.staticTexts["challenge-refreshed"].exists)
+            XCTAssertFalse(app.buttons["submit-answer"].isEnabled)
+            XCTAssertTrue((answer.value as? String ?? "").isEmpty || answer.value as? String == answer.placeholderValue)
+            let refreshed = XCTAttachment(screenshot: app.screenshot())
+            refreshed.name = "Fresh calculation after app switch " + destination
+            refreshed.lifetime = .keepAlways
+            add(refreshed)
+            answer.tap()
+            answer.typeText(oldAnswer)
+            app.buttons["submit-answer"].tap()
+            XCTAssertTrue(app.staticTexts["answer-feedback"].waitForExistence(timeout: 3))
+            XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+            let newAnswer = answerToDisplayedCalculation(app)
+            answer.tap()
+            answer.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldAnswer.count) + newAnswer)
+            app.buttons["submit-answer"].tap()
+            if destination == "settings" {
+                XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+                app.buttons["Done"].tap()
+            } else {
+                XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+                if destination == "app" {
+                    otherApp.activate()
+                    app.activate()
+                    XCTAssertTrue(app.staticTexts["unlock-success"].exists)
+                    XCTAssertTrue(app.staticTexts["unlock-countdown"].exists)
+                    XCTAssertFalse(app.staticTexts["problem"].exists)
+                }
+                app.buttons["finish-challenge"].tap()
+            }
+            if destination == "app" { app.buttons["lock-" + first].tap() }
+            XCTAssertTrue(app.buttons["solve-" + first].exists)
+            XCTAssertTrue(app.buttons["solve-" + second].exists)
+        }
+    }
+
+    @MainActor
+    func testSettingsRequireCurrentCalculationOnEveryVisitWithoutUnlockingApps() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        app.buttons["settings"].tap()
+        XCTAssertEqual(app.staticTexts["problem"].label, "47 times 63")
+        XCTAssertEqual(app.buttons["submit-answer"].label, "Open Settings")
+        XCTAssertFalse(app.buttons["operation-addition"].exists)
+        let gate = XCTAttachment(screenshot: app.screenshot())
+        gate.name = "Calculation before Settings"
+        gate.lifetime = .keepAlways
+        add(gate)
+        app.textFields["answer"].tap()
+        app.textFields["answer"].typeText("0")
+        app.buttons["submit-answer"].tap()
+        XCTAssertTrue(app.staticTexts["answer-feedback"].exists)
+        XCTAssertFalse(app.staticTexts["calculation-example"].exists)
+        app.buttons["Cancel"].tap()
+        openSettings(app)
+        app.segmentedControls["first-number-digits"].buttons["3 digits"].tap()
+        app.segmentedControls["second-number-digits"].buttons["3 digits"].tap()
+        app.buttons["Done"].tap()
+        for _ in 0..<2 {
+            app.buttons["settings"].tap()
+            XCTAssertEqual(app.staticTexts["problem"].label, "247 times 163")
+            XCTAssertFalse(app.staticTexts["calculation-example"].exists)
+            app.buttons["Cancel"].tap()
+        }
+        openSettings(app)
+        app.buttons["operation-addition"].tap()
+        app.buttons["Done"].tap()
+        app.buttons["settings"].tap()
+        XCTAssertEqual(app.staticTexts["problem"].label, "247 plus 163")
+        answerSettingsGate(app)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        let closed = NSPredicate(format: "exists == false")
+        expectation(for: closed, evaluatedWith: app.staticTexts["calculation-example"])
+        waitForExpectations(timeout: 5)
+        app.buttons["settings"].tap()
+        XCTAssertEqual(app.staticTexts["problem"].label, "247 plus 163")
+        answerSettingsGate(app)
+        app.buttons["Done"].tap()
+        for id in ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"] {
+            XCTAssertTrue(app.buttons["solve-" + id].exists)
+            XCTAssertFalse(app.buttons["lock-" + id].exists)
+        }
+    }
+
+    @MainActor
+    func testCalculationSettingsReachEveryOperationAndMixedDigitChallenge() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        let home = XCTAttachment(screenshot: app.screenshot())
+        home.name = "Home with default calculation"
+        home.lifetime = .keepAlways
+        add(home)
+        let first = "11111111-1111-1111-1111-111111111111"
+        let second = "22222222-2222-2222-2222-222222222222"
+        openSettings(app)
+        XCTAssertEqual(app.staticTexts["calculation-example"].label, "Example: 47 times 63")
+        app.segmentedControls["first-number-digits"].buttons["3 digits"].tap()
+        app.segmentedControls["second-number-digits"].buttons["3 digits"].tap()
+
+        let cases = [("multiplication", "247 times 163", "40261"),
+                     ("addition", "247 plus 163", "410"),
+                     ("subtraction", "247 minus 163", "84"),
+                     ("division", "864 divided by 216", "4")]
+        for (operation, expression, result) in cases {
+            app.buttons["operation-" + operation].tap()
+            XCTAssertEqual(app.staticTexts["calculation-example"].label, "Example: " + expression)
+            let settings = XCTAttachment(screenshot: app.screenshot())
+            settings.name = "Calculation settings " + operation
+            settings.lifetime = .keepAlways
+            add(settings)
+            app.buttons["Done"].tap()
+            app.buttons["solve-" + first].tap()
+            XCTAssertEqual(app.staticTexts["problem"].label, expression)
+            app.textFields["answer"].tap()
+            app.textFields["answer"].typeText(result)
+            app.buttons["submit-answer"].tap()
+            XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+            app.buttons["finish-challenge"].tap()
+            XCTAssertTrue(app.buttons["solve-" + second].exists)
+            app.buttons["lock-" + first].tap()
+            openSettings(app)
+        }
+        app.segmentedControls["first-number-digits"].buttons["2 digits"].tap()
+        XCTAssertEqual(app.staticTexts["calculation-example"].label, "Example: 432 divided by 24")
+        app.buttons["operation-multiplication"].tap()
+        XCTAssertEqual(app.staticTexts["calculation-example"].label, "Example: 47 times 163")
+        app.buttons["Done"].tap()
+        app.buttons["solve-" + first].tap()
+        XCTAssertEqual(app.staticTexts["problem"].label, "47 times 163")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["solve-" + first].exists)
+        openSettings(app)
+        let practice = app.buttons["Try a practice calculation"]
+        for _ in 0..<8 where !practice.isHittable { app.swipeUp() }
+        practice.tap()
+        XCTAssertTrue(app.textFields["answer"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["problem"].label, "47 times 163")
+        XCTAssertEqual(app.buttons["submit-answer"].label, "Check answer")
+        app.textFields["answer"].tap()
+        app.textFields["answer"].typeText("7661")
+        app.buttons["submit-answer"].tap()
+        XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+        app.buttons["finish-challenge"].tap()
+        XCTAssertTrue(app.buttons["solve-" + first].exists)
+        XCTAssertTrue(app.buttons["solve-" + second].exists)
+    }
+
+    @MainActor
+    func testCalculationControlsAtLargestAccessibilityTextSize() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        openSettings(app)
+        let top = XCTAttachment(screenshot: app.screenshot())
+        top.name = "Calculation settings largest text top"
+        top.lifetime = .keepAlways
+        add(top)
+        let divide = app.buttons["operation-division"]
+        for _ in 0..<5 where !divide.isHittable { app.swipeUp() }
+        divide.tap()
+        for identifier in ["first-number-digits", "second-number-digits"] {
+            let picker = app.buttons[identifier]
+            for _ in 0..<5 where !picker.isHittable { app.swipeUp() }
+            picker.tap()
+            app.buttons["3 digits"].tap()
+        }
+        let controls = XCTAttachment(screenshot: app.screenshot())
+        controls.name = "Calculation settings largest text controls"
+        controls.lifetime = .keepAlways
+        add(controls)
+        app.buttons["Done"].tap()
+        let solve = app.buttons["solve-11111111-1111-1111-1111-111111111111"]
+        for _ in 0..<5 where !solve.isHittable { app.swipeUp() }
+        solve.tap()
+        XCTAssertEqual(app.staticTexts["problem"].label, "864 divided by 216")
+    }
+
+    @MainActor
     func testNotificationPermissionAndSettingsHandoff() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--uitesting", "--test-notifications"]
@@ -35,7 +246,8 @@ final class GateUITests: XCTestCase {
             button.tap()
         } else {
             XCTAssertFalse(app.buttons["allow-notifications"].exists)
-            app.buttons["settings"].tap()
+            openSettings(app)
+            for _ in 0..<4 where !app.buttons["manage-notifications"].isHittable { app.swipeUp() }
             XCTAssertEqual(app.buttons["manage-notifications"].label, "Notification settings")
             app.buttons["manage-notifications"].tap()
         }
@@ -44,7 +256,8 @@ final class GateUITests: XCTestCase {
         XCTAssertFalse(springboard.alerts.firstMatch.exists)
         // The simulator opens Settings but does not expose per-app notification toggles.
         app.activate()
-        if !needsPermission { app.buttons["Done"].tap() }
+        // Settings access expires when Gate backgrounds for the system Settings handoff.
+        XCTAssertFalse(app.staticTexts["calculation-example"].exists)
         XCTAssertEqual(app.staticTexts["notification-guidance"].exists, needsPermission)
     }
 
@@ -55,7 +268,7 @@ final class GateUITests: XCTestCase {
         app.launch()
         let first = "11111111-1111-1111-1111-111111111111"
         let second = "22222222-2222-2222-2222-222222222222"
-        app.buttons["settings"].tap()
+        openSettings(app)
         app.buttons["unlock-duration-picker"].tap()
         app.buttons["5 minutes"].tap()
         let settings = XCTAttachment(screenshot: app.screenshot())
@@ -63,7 +276,7 @@ final class GateUITests: XCTestCase {
         settings.lifetime = .keepAlways
         add(settings)
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["Solve one multiplication to earn 5 minutes in an app."].exists)
+        XCTAssertTrue(app.staticTexts["Solve one calculation to earn 5 minutes in an app."].exists)
         app.buttons["solve-" + first].tap()
         XCTAssertEqual(app.buttons["submit-answer"].label, "Unlock for 5 minutes")
         app.textFields["answer"].tap()
@@ -71,7 +284,7 @@ final class GateUITests: XCTestCase {
         app.buttons["submit-answer"].tap()
         XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
         app.buttons["finish-challenge"].tap()
-        app.buttons["settings"].tap()
+        openSettings(app)
         app.buttons["unlock-duration-picker"].tap()
         app.buttons["30 minutes"].tap()
         app.buttons["Done"].tap()
@@ -125,5 +338,38 @@ final class GateUITests: XCTestCase {
         let first = "11111111-1111-1111-1111-111111111111"
         XCTAssertTrue(app.buttons["solve-" + first].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["lock-" + first].exists)
+    }
+
+    @MainActor
+    private func openSettings(_ app: XCUIApplication) {
+        app.buttons["settings"].tap()
+        answerSettingsGate(app)
+    }
+
+    @MainActor
+    private func answerSettingsGate(_ app: XCUIApplication) {
+        XCTAssertTrue(app.textFields["answer"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["submit-answer"].label, "Open Settings")
+        let result = answerToDisplayedCalculation(app)
+        let answer = app.textFields["answer"]
+        for _ in 0..<5 where !answer.isHittable { app.swipeUp() }
+        answer.tap()
+        answer.typeText(result)
+        app.buttons["submit-answer"].tap()
+        XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func answerToDisplayedCalculation(_ app: XCUIApplication) -> String {
+        let expression = app.staticTexts["problem"].label
+        let numbers = expression.split(separator: " ").compactMap { Int($0) }
+        guard numbers.count == 2 else { XCTFail("Unexpected calculation: \(expression)"); return "" }
+        let result: Int
+        if expression.contains("times") { result = numbers[0] * numbers[1] }
+        else if expression.contains("plus") { result = numbers[0] + numbers[1] }
+        else if expression.contains("minus") { result = numbers[0] - numbers[1] }
+        else if expression.contains("divided by") { result = numbers[0] / numbers[1] }
+        else { XCTFail("Unexpected operation: \(expression)"); return "" }
+        return String(result)
     }
 }

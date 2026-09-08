@@ -6,7 +6,7 @@
 
 <p align="center"><strong>A little math before another scroll.</strong></p>
 
-<p align="center">An iPhone app that makes distracting apps take a little more effort to open.<br>Solve a two-digit multiplication problem. Earn a window in one app.</p>
+<p align="center">An iPhone app that makes distracting apps take a little more effort to open.<br>Solve a calculation you choose. Earn a window in one app.</p>
 
 <p align="center"><a href="#try-it-in-the-simulator">Try the preview</a> · <a href="#install-on-your-iphone">Install on iPhone</a> · <a href="docs/design-log.md">How it works</a> · <a href="LICENSE">MIT license</a></p>
 
@@ -22,17 +22,39 @@
 <summary>See dark mode</summary>
 <br>
 <img src="docs/screenshots/home-dark.png" width="300" alt="Gate's app list in dark mode, with blue controls and two protected sample apps">
+<img src="docs/screenshots/settings-calculation-dark.png" width="300" alt="Calculation settings in dark mode with three-digit multiplication selected">
 </details>
 
 ## What Gate does
 
 1. **Choose your distractions.** Grant Screen Time access and select up to 12 individual apps using Apple's app picker.
 2. **Pause at the door.** Opening a protected app brings up an iOS blocking screen. Start a calculation from there, or from Gate's app list.
-3. **Solve to unlock.** One correct answer to a random two-digit × two-digit problem grants access to **that app only**. A wrong answer or cancellation grants nothing.
+3. **Solve to unlock.** One correct answer to a random calculation grants access to **that app only**. Two-digit × two-digit multiplication is the default. A wrong answer or cancellation grants nothing.
 4. **Use your window.** Your chosen duration starts when you answer correctly. You can leave and reopen the app during that window; time continues while you use other apps or lock your phone.
 5. **Block again.** A Screen Time extension reapplies the block when the window expires. You can also end the window early with **Lock now**.
 
 No account, server, analytics, ads, subscriptions, or AI. App selection tokens and unlock dates stay on your phone. Practice calculations never change app access.
+
+### Choose your calculation
+
+**Settings has its own gate.** Tap Settings and solve one calculation using your **current** digit counts and operation before changing anything. Wrong answers and cancellation keep Settings closed. Access lasts for that visit: closing Settings or leaving Gate requires a fresh calculation next time. Solving the Settings gate never unlocks an app or changes its existing window.
+
+Open **Settings → Your calculation** to choose **Add (+), Subtract (−), Multiply (×), or Divide (÷)**. Set each number to **2 digits or 3 digits** independently: two × two, two × three, three × two, or three × three. The example updates as you choose. **Two-digit multiplication remains the default.**
+
+Subtraction and division put the larger number first. Subtraction never needs a negative answer, and division always produces a whole number with no remainder. For a mixed-size division, the three-digit number comes first regardless of which size control selected it. Division avoids equal-number problems whose answer would always be 1.
+
+Choices are saved on your iPhone and used by new app-unlock, practice, and Settings calculations. Changing preferences does not alter a calculation already open. Existing unlock windows keep their original end time. The labeled simulator preview keeps preferences only until it is relaunched.
+
+<a href="docs/screenshots/settings-gate.png"><img src="docs/screenshots/settings-gate.png" width="300" alt="Gate requires the current calculation before opening Settings"></a>
+<a href="docs/screenshots/settings-calculation.png"><img src="docs/screenshots/settings-calculation.png" width="300" alt="Gate calculation settings with a live three-digit multiplication example, four operation buttons, and two independent digit selectors"></a>
+
+*Simulator previews with sample calculations. No real apps are blocked or unlocked.*
+
+### Leaving a calculation
+
+If you leave Gate during an unfinished calculation, returning gives you **two new numbers and a different answer**. The answer field and retry message reset, so a result found in Calculator cannot unlock the previous round. This applies to app access, practice, and the Settings gate. The operation, digit sizes, and offered unlock duration stay the same.
+
+Completed calculations and active unlock windows are preserved; returning to Gate never restarts their timers.
 
 ### Choose your unlock time
 
@@ -168,7 +190,7 @@ Before relying on the gate, follow the [physical-device checklist](docs/device-t
 swift scripts/generate-icon.swift
 ```
 
-Core tests cover answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. Simulator tests cover saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for changing duration, wrong/correct answers, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
+Core tests cover all four operations and digit combinations, exact whole-number division, answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. Simulator tests cover saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for gating Settings on every visit, refreshing unfinished calculations after an app switch, returning from the background, changing calculation settings and duration, wrong/correct answers, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
 
 The notification test adds `--test-notifications` to `--demo --uitesting` to exercise the real system prompt and Settings handoff while keeping app blocking in preview mode. Ordinary previews never request notification permission. The first test run denies the prompt by default; a fresh test installation with `TEST_RUNNER_GATE_NOTIFICATION_TEST_RESPONSE=allow` exercises granting it. Later runs reuse the OS's saved permission. Per-app notification toggles are unavailable in the tested simulator, so changing those settings and returning to Gate remains a physical-device check.
 

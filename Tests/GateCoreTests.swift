@@ -4,7 +4,7 @@ import XCTest
 
 final class GateCoreTests: XCTestCase {
     func testAnswerMustBeTheFullIntegerProduct() {
-        let challenge = MultiplicationChallenge(left: 47, right: 63)
+        let challenge = CalculationChallenge(left: 47, right: 63)
         XCTAssertTrue(challenge.accepts("2961"))
         XCTAssertTrue(challenge.accepts(" 2961\n"))
         for answer in ["", "2960", "2961.0", "2961 trailing", "2,961", "-2961", "+2961", "２９６１", "999999999999999999999999999"] {
@@ -14,7 +14,7 @@ final class GateCoreTests: XCTestCase {
 
     func testEveryGeneratedOperandHasTwoDigits() {
         for _ in 0..<1000 {
-            let problem = MultiplicationChallenge.random()
+            let problem = CalculationChallenge.random()
             XCTAssertTrue((10...99).contains(problem.left))
             XCTAssertTrue((10...99).contains(problem.right))
             XCTAssertTrue(problem.accepts(String(problem.left * problem.right)))

@@ -9,9 +9,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Your gate") {
-                    LabeledContent("Challenge", value: "Two digits × two digits")
-                    LabeledContent("Correct answers needed", value: "1")
+                calculation
+                Section {
                     Picker("Unlock time", selection: Binding(
                         get: { model.unlockDuration },
                         set: { model.setUnlockDuration($0) }
@@ -22,10 +21,11 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
                     .accessibilityIdentifier("unlock-duration-picker")
-                    Text("Applies to new calculations. Existing windows keep their end time.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                    Text("Each window applies to one app. Time keeps passing when you switch apps or lock your phone.")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                } header: {
+                    informationHeading("Your window")
+                } footer: {
+                    Text("Applies to new calculations. Existing windows keep their end time. Time keeps passing when you switch apps or lock your phone.")
+                        .font(.footnote).lineSpacing(3)
                 }
                 Section("Permissions") {
                     Label(model.authorized ? "Screen Time connected" : "Screen Time access needed",
@@ -51,11 +51,122 @@ struct SettingsView: View {
                 walkthrough
                 privacy
             }
+            .scrollContentBackground(.hidden)
+            .background(GateTheme.paper)
             .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .alert("Gate needs attention", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
                 Button("OK") { model.errorMessage = nil }
             } message: { Text(model.errorMessage ?? "") }
+        }
+        .tint(GateTheme.blue)
+    }
+
+    private var calculation: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Example")
+                        .font(.subheadline).foregroundStyle(GateTheme.muted)
+                    Text("\(model.calculationSettings.example.expression) = ?")
+                        .font(.system(.largeTitle, design: .rounded, weight: .medium))
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundStyle(GateTheme.ink)
+                        .accessibilityLabel("Example: \(model.calculationSettings.example.spokenExpression)")
+                        .accessibilityIdentifier("calculation-example")
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Operation").font(.subheadline.weight(.medium))
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 1 : 4), spacing: 8) {
+                        ForEach(CalculationOperation.allCases) { operation in
+                            operationButton(operation)
+                        }
+                    }
+                }
+
+                VStack(spacing: 16) {
+                    digitPicker("One number", keyPath: \.firstDigits, identifier: "first-number-digits")
+                    digitPicker("Other number", keyPath: \.secondDigits, identifier: "second-number-digits")
+                }
+
+                Text(calculationNote)
+                    .font(.footnote).foregroundStyle(GateTheme.muted)
+                    .lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 8)
+        } header: {
+            informationHeading("Your calculation")
+        } footer: {
+            Text(model.isDemo ? "Preview only. These choices reset when you relaunch the preview." : "Saved on your iPhone. Applies to new calculations, including practice.")
+                .font(.footnote).lineSpacing(3)
+        }
+    }
+
+    private var calculationNote: String {
+        switch model.calculationSettings.operation {
+        case .addition, .multiplication:
+            return "New numbers every time. One correct answer opens a window."
+        case .subtraction:
+            return "Larger number first, so answers are never negative."
+        case .division:
+            return "Larger number first. Answers are always whole numbers, with no remainders."
+        }
+    }
+
+    private func operationButton(_ operation: CalculationOperation) -> some View {
+        let selected = model.calculationSettings.operation == operation
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(HStackLayout(spacing: 16))
+            : AnyLayout(VStackLayout(spacing: 5))
+        return Button {
+            var preferences = model.calculationSettings
+            preferences.operation = operation
+            model.setCalculationSettings(preferences)
+        } label: {
+            layout {
+                Text(operation.symbol).font(.system(.title2, design: .rounded, weight: .medium))
+                    .frame(width: dynamicTypeSize.isAccessibilitySize ? 64 : nil)
+                Text(operation.title).font(.system(.caption, design: .rounded, weight: .semibold))
+                    .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 12)
+            .foregroundStyle(selected ? GateTheme.paper : GateTheme.ink)
+            .background(selected ? GateTheme.blue : GateTheme.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(operation.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("operation-\(operation.rawValue)")
+    }
+
+    private func digitPicker(_ title: String, keyPath: WritableKeyPath<CalculationSettings, CalculationDigits>, identifier: String) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 16))
+        let picker = Picker(title, selection: Binding(
+            get: { model.calculationSettings[keyPath: keyPath] },
+            set: { value in
+                var preferences = model.calculationSettings
+                preferences[keyPath: keyPath] = value
+                model.setCalculationSettings(preferences)
+            }
+        )) {
+            ForEach(CalculationDigits.allCases) { digits in
+                Text(digits.title).tag(digits)
+            }
+        }
+        return layout {
+            Text(title).font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if dynamicTypeSize.isAccessibilitySize {
+                // Native segmented controls keep tiny labels at accessibility sizes.
+                picker.pickerStyle(.menu).labelsHidden().font(.body)
+                    .accessibilityIdentifier(identifier)
+            } else {
+                picker.pickerStyle(.segmented).frame(maxWidth: 180)
+                    .accessibilityIdentifier(identifier)
+            }
         }
     }
 
@@ -65,7 +176,7 @@ struct SettingsView: View {
                 step(1, title: "Open a protected app", detail: GateHandoff.opensAppDirectly
                      ? "Tap Solve to unlock on the blocking screen to open Gate."
                      : "Tap Prepare calculation, then open Gate from its notification or Home Screen.")
-                step(2, title: "Work it out", detail: "Solve one multiplication to earn \(model.unlockDuration.title) in that app.")
+                step(2, title: "Work it out", detail: "Solve one calculation to earn \(model.unlockDuration.title) in that app.")
                 step(3, title: "Use your window", detail: "Return using the app switcher or Home Screen. Gate blocks the app again when time is up.")
             }
             .padding(.vertical, 10)

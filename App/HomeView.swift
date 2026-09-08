@@ -3,8 +3,10 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var model: GateModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingPicker = false
     @State private var showingSettings = false
+    @State private var openSettingsAfterChallenge = false
     @State private var pickerSelection = FamilyActivitySelection()
     private let refreshTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
@@ -35,7 +37,7 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Settings", systemImage: "slider.horizontal.3") { showingSettings = true }
+                    Button("Settings", systemImage: "slider.horizontal.3") { model.beginSettingsChallenge() }
                         .labelStyle(.iconOnly)
                         .accessibilityIdentifier("settings")
                 }
@@ -63,9 +65,18 @@ struct HomeView: View {
                         } message: { Text(model.errorMessage ?? "") }
                 }
             }
-            .sheet(isPresented: $showingSettings) { SettingsView(model: model) }
-            .sheet(item: $model.challenge) { session in
-                ChallengeView(model: model, session: session)
+            .sheet(isPresented: $showingSettings) {
+                SettingsView(model: model).allowsHitTesting(showingSettings)
+            }
+            .sheet(item: $model.challenge, onDismiss: {
+                // Present only after the successful gate has finished dismissing its sheet.
+                if openSettingsAfterChallenge {
+                    openSettingsAfterChallenge = false
+                    showingSettings = true
+                }
+            }) { session in
+                ChallengeView(model: model, session: session) { openSettingsAfterChallenge = true }
+                    .id(session.id)
             }
             .alert("Gate needs attention", isPresented: Binding(
                 get: { model.errorMessage != nil && !showingPicker && !showingSettings },
@@ -77,6 +88,12 @@ struct HomeView: View {
                 // Refresh expired labels and reconcile shields while Gate is foregrounded.
                 // The extension owns expiry when another app is on screen.
                 model.refresh()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .background else { return }
+                // Settings access lasts for this foreground visit, not a reusable grace period.
+                openSettingsAfterChallenge = false
+                showingSettings = false
             }
         }
     }
@@ -90,11 +107,12 @@ struct HomeView: View {
             Text("A pause before\nthe scroll.")
                 .font(.system(size: 39, weight: .bold, design: .rounded))
                 .tracking(-1.2).fixedSize(horizontal: false, vertical: true)
-            Text("Solve one multiplication to earn \(model.unlockDuration.title) in an app.")
+            Text("Solve one calculation to earn \(model.unlockDuration.title) in an app.")
                 .font(.body).foregroundStyle(GateTheme.muted).lineSpacing(4)
             HStack(spacing: 12) {
-                Image(systemName: "multiply").font(.title3.weight(.semibold))
-                Text("Two digits × two digits")
+                Image(systemName: model.calculationSettings.operation.systemImage).font(.title3.weight(.semibold))
+                    .accessibilityHidden(true)
+                Text(model.calculationSettings.summary)
                     .font(.system(.subheadline, design: .rounded, weight: .medium))
                 Spacer()
                 Image(systemName: "lock").font(.subheadline)

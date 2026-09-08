@@ -3,6 +3,7 @@ import SwiftUI
 struct ChallengeView: View {
     @ObservedObject var model: GateModel
     let session: ChallengeSession
+    let onSettingsUnlocked: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var answer = ""
     @State private var feedback: String?
@@ -22,7 +23,7 @@ struct ChallengeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(GateTheme.paper).foregroundStyle(GateTheme.ink)
-            .navigationTitle(session.app == nil ? "Practice" : "Earn a window")
+            .navigationTitle(session.isSettingsGate ? "Open Settings" : (session.app == nil ? "Practice" : "Earn a window"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -36,17 +37,23 @@ struct ChallengeView: View {
     private var calculation: some View {
         VStack(alignment: .leading, spacing: 24) {
             if let app = session.app { AppIdentity(app: app).font(.headline) }
-            Text("Take a moment.\nWork it out.")
+            Text(session.isSettingsGate ? "Before you\nchange the rules." : "Take a moment.\nWork it out.")
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text(session.app == nil ? "A practice round. No apps will be unlocked." : "One correct answer opens this app for \(session.unlockDuration.title).")
+            Text(session.isSettingsGate ? "Solve your current calculation to open Settings. Existing app windows keep their end times."
+                 : (session.app == nil ? "A practice round. No apps will be unlocked." : "One correct answer opens this app for \(session.unlockDuration.title)."))
                 .font(.body).foregroundStyle(GateTheme.muted)
+            if session.wasRefreshed {
+                Text("New calculation after leaving Gate.")
+                    .font(.footnote).foregroundStyle(GateTheme.muted)
+                    .accessibilityIdentifier("challenge-refreshed")
+            }
             VStack(spacing: 18) {
-                Text("\(session.problem.left) × \(session.problem.right)")
+                Text(session.problem.expression)
                     .font(.system(size: 62, weight: .medium, design: .rounded))
                     .minimumScaleFactor(0.5).lineLimit(1).monospacedDigit()
                     .frame(maxWidth: .infinity)
-                    .accessibilityLabel("\(session.problem.left) times \(session.problem.right)")
+                    .accessibilityLabel(session.problem.spokenExpression)
                     .accessibilityIdentifier("problem")
                 Rectangle().fill(GateTheme.rule).frame(height: 2)
                 TextField("Your answer", text: $answer)
@@ -67,10 +74,10 @@ struct ChallengeView: View {
                 Text(feedback).font(.subheadline).foregroundStyle(.red)
                     .accessibilityIdentifier("answer-feedback")
             }
-            Button(session.app == nil ? "Check answer" : "Unlock for \(session.unlockDuration.title)", action: submit)
+            Button(session.isSettingsGate ? "Open Settings" : (session.app == nil ? "Check answer" : "Unlock for \(session.unlockDuration.title)"), action: submit)
                 .buttonStyle(GateButtonStyle()).disabled(answer.isEmpty)
                 .accessibilityIdentifier("submit-answer")
-            Button("Keep it closed") { dismiss() }
+            Button(session.isSettingsGate ? "Keep my settings" : "Keep it closed") { dismiss() }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
         }
@@ -84,7 +91,7 @@ struct ChallengeView: View {
             Text(session.app == nil ? "You worked it out." : "Your window is open.")
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .accessibilityIdentifier("unlock-success")
-            Text("\(session.problem.left) × \(session.problem.right) = \(session.problem.left * session.problem.right)")
+            Text("\(session.problem.expression) = \(session.problem.answer)")
                 .font(.system(.title2, design: .rounded, weight: .medium))
             if let app = session.app {
                 AppIdentity(app: app).font(.headline)
@@ -114,6 +121,11 @@ struct ChallengeView: View {
                 return
             }
             answerFocused = false
+            if session.isSettingsGate {
+                onSettingsUnlocked()
+                dismiss()
+                return
+            }
             expiresAt = expiry
         } catch {
             feedback = "Couldn't unlock the app. \(error.localizedDescription)"

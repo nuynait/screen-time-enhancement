@@ -27,8 +27,14 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Tap Allow challenge notifications after denial | Opens Gate's notification settings instead of repeating the system prompt | Not run |
 | Turn notifications off/on in Settings, then return | Home guidance appears/disappears to match the latest permission | Not run |
 | Wrong answer | Shield remains; challenge explains retry | Not run |
+| Leave an unfinished app, practice, or Settings calculation for Calculator, then return | Both numbers and the answer change; input clears; old answer is rejected; difficulty/duration stay the same | Not run |
+| Leave a completed challenge and return | Success remains; an app window keeps its original expiry | Not run |
 | Cancel or swipe challenge away | No grant or unshield operation occurs | Not run |
 | Change Settings → Unlock time, then relaunch Gate | Choice persists; a new calculation offers the chosen duration | Not run |
+| Open Settings, cancel or answer incorrectly | Current calculation is required; Settings stays closed; no app grant changes | Not run |
+| Solve Settings gate, change difficulty, leave Settings or background Gate | Next Settings visit requires the updated calculation | Not run |
+| Change operation and either digit count, then relaunch | Choices persist; new app and practice calculations match them | Not run |
+| Solve addition, subtraction, multiplication, and division | Correct answer unlocks only the chosen app; subtraction is nonnegative and division has no remainder | Not run |
 | Correct answer | Only the chosen app opens; other app stays blocked | Not run |
 | Change duration during an active window | Its end time remains unchanged; a new calculation uses the new preference | Not run |
 | Leave/reopen unlocked app | No new challenge during its current window | Not run |
@@ -55,3 +61,11 @@ Record actual times for expiry, including any OS callback delay. Apple's minimum
 - Physical-device enforcement has not been verified. The checklist above remains open.
 
 Use your own developer team, bundle identifier, and App Group in the ignored `Config/Local.xcconfig`. If Xcode cannot mount a phone's developer image, resolve its device-support setup before attempting the checklist. Record technical environment details and observed timings when testing; keep account identifiers and device UDIDs in local notes rather than public reports.
+
+
+## Calculation choices and Settings gate verification
+
+The calculation update passes 16 core tests and 12 distinct simulator state/UI tests (full suite plus targeted refinement runs). This includes current-rule Settings gating, wrong answers, cancellation, repeated visits, changed operation/digit sizes, background return, practice without app access, and saved preference compatibility. Light/dark and largest-text layouts were inspected. The final signed Debug iPhone build succeeds. These checks do not replace the physical-device rows above.
+
+
+The foreground-refresh update passes **17 core tests and the full 13-test simulator suite**. Switching to the system Settings app and back verifies fresh operands/answers and cleared input for app, practice, and Settings calculations, rejection of the previous answer, and preservation of completed app windows. Calculator is absent from the tested simulator. The final signed Debug iPhone build passes; the physical-device checklist remains open.

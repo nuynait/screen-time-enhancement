@@ -38,8 +38,11 @@ struct GateApp: App {
                 .task { await model.refreshNotifications() }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
+                        model.returnToForeground()
                         model.refresh()
                         Task { await model.refreshNotifications() }
+                    } else {
+                        model.leaveForeground()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .gateChallengeRequested)) { _ in model.refresh() }

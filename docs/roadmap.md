@@ -19,7 +19,7 @@
 
 ## Possible follow-ups
 
-- Challenge count and difficulty options, if requested.
+- Multiple correct answers per unlock, if requested.
 - Shortcuts integration for an automatic app-open redirect, if requested.
 - Optional known-app launch shortcuts after solving, without guessing opaque token identities.
 - TestFlight distribution after Family Controls entitlement approval for every target.
@@ -59,3 +59,24 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and p
 - [x] Present privacy details as short titled points with descriptive icons.
 - [x] Stack the explanation rows vertically at accessibility text sizes.
 - [x] Check the existing UI flows and inspect light, dark, and large-text captures.
+
+## Calculation choices
+
+- [x] Choose addition, subtraction, multiplication, or division in Settings.
+- [x] Choose two or three digits independently for each number, with two-digit multiplication as the default.
+- [x] Show a live example and use readable operation names, symbols, and accessible selection states.
+- [x] Generate nonnegative subtraction and exact whole-number division, putting the larger number first.
+- [x] Save preferences without altering open calculations or existing unlock windows.
+- [x] Verify all operations and digit combinations in tests and inspect simulator layouts.
+- [x] Require the current calculation before each Settings visit without granting app access.
+- [x] Expire Settings access when Gate moves to the background.
+- [x] Verify wrong answers, cancellation, changed difficulty, repeated visits, and background return for the Settings gate.
+
+
+## Fresh calculations after leaving Gate
+
+- [x] Invalidate unfinished challenges when Gate loses the foreground.
+- [x] Replace both numbers and the answer on return; clear answer/feedback by giving the round a new identity.
+- [x] Apply to app access, practice, and the Settings gate while retaining offered difficulty and duration.
+- [x] Preserve completed challenges and active unlock windows.
+- [x] Verify app switching, old-answer rejection, empty input, and completed-window preservation in the simulator.

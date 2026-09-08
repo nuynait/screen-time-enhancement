@@ -14,6 +14,8 @@ Keep these properties:
 
 - Register a Device Activity expiry before removing a shield. Scheduling failure must grant no access.
 - A grant belongs to exactly one app and preserves the duration offered when its calculation opened. The default is 15 minutes; changing preferences never rewrites active grants.
+- Unfinished challenges become invalid on leaving the foreground. Returning must change both operands and the answer, reset input, and retain the offered operation/digit sizes/duration. Completed challenges and grants are preserved.
+- Settings requires the current calculation on every visit and after backgrounding. Passing this gate never creates or changes app grants.
 - Each grant gets its own monitor name; a late callback must preserve newer active grants.
 - Never call `startMonitoring` or `stopMonitoring` while holding the shared file lock; the OS may call the extension synchronously.
 - Use explicit application tokens only. Category and website selection is unsupported and must be rejected visibly.

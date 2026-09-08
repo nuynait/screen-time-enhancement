@@ -26,8 +26,48 @@ final class GateStateTests: XCTestCase {
         """.utf8)
         let state = try JSONDecoder().decode(GateState.self, from: legacy)
         XCTAssertEqual(state.unlockDuration, .fifteenMinutes)
+        XCTAssertEqual(state.calculationSettings, .defaultValue)
         XCTAssertEqual(state.grants.count, 1)
         XCTAssertEqual(state.grants[0].expiresAt.timeIntervalSinceReferenceDate, 10900)
+    }
+
+    func testCalculationPreferencesSurviveReloadAndPreserveOtherState() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let grant = UnlockGrant(appID: UUID(), duration: .fiveMinutes)
+        let pending = PendingChallenge(appID: UUID(), createdAt: Date())
+        let store = LockedJSONStore(directory: directory, initialValue: { GateState() })
+        try store.update {
+            $0.grants = [grant]
+            $0.pendingChallenge = pending
+            $0.unlockDuration = .thirtyMinutes
+        }
+        for operation in CalculationOperation.allCases {
+            for first in CalculationDigits.allCases {
+                for second in CalculationDigits.allCases {
+                    let preferences = CalculationSettings(firstDigits: first, secondDigits: second, operation: operation)
+                    try store.update { $0.calculationSettings = preferences }
+                    let loaded = try LockedJSONStore(directory: directory, initialValue: { GateState() }).read()
+                    XCTAssertEqual(loaded.calculationSettings, preferences)
+                    XCTAssertEqual(loaded.grants, [grant])
+                    XCTAssertEqual(loaded.unlockDuration, .thirtyMinutes)
+                    XCTAssertEqual(loaded.pendingChallenge?.appID, pending.appID)
+                    XCTAssertEqual(loaded.pendingChallenge?.createdAt, pending.createdAt)
+                }
+            }
+        }
+    }
+
+    func testPartialAndUnknownCalculationPreferencesUseDefaultsButBadTypesFail() throws {
+        let partial = Data("""
+        {"version":1,"apps":[],"grants":[],"firstNumberDigits":3,"calculationOperation":"future"}
+        """.utf8)
+        let state = try JSONDecoder().decode(GateState.self, from: partial)
+        XCTAssertEqual(state.calculationSettings, .init(firstDigits: .three))
+        let malformed = Data("""
+        {"version":1,"apps":[],"grants":[],"firstNumberDigits":"three"}
+        """.utf8)
+        XCTAssertThrowsError(try JSONDecoder().decode(GateState.self, from: malformed))
     }
 
     func testChangingAndReloadingDurationDoesNotChangeExistingGrant() throws {

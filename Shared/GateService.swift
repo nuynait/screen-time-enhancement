@@ -23,6 +23,10 @@ final class GateService {
         try storage.update { $0.unlockDuration = duration }
     }
 
+    func setCalculationSettings(_ preferences: CalculationSettings) throws -> GateState {
+        try storage.update { $0.calculationSettings = preferences }
+    }
+
     @discardableResult
     func reconcile(at now: Date = Date()) throws -> GateState {
         let state = try mutate(at: now) { _ in }
