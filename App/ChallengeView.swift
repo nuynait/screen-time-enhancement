@@ -8,6 +8,8 @@ struct ChallengeView: View {
     @State private var answer = ""
     @State private var feedback: String?
     @State private var expiresAt: Date?
+    @State private var showingBypass = false
+    @State private var usedBypass = false
     @FocusState private var answerFocused: Bool
 
     var body: some View {
@@ -32,6 +34,22 @@ struct ChallengeView: View {
             }
         }
         .tint(GateTheme.blue)
+        .sheet(isPresented: $showingBypass, onDismiss: {
+            if session.isSettingsGate, expiresAt != nil { finishSettingsGate() }
+        }) {
+            PasscodeView(model: model, purpose: .bypass,
+                         bypassTitle: session.isSettingsGate ? "Open Settings" : (session.app == nil ? "Finish practice" : "Unlock for \(session.unlockDuration.title)"),
+                         bypassDetail: session.isSettingsGate
+                         ? "Ask the person who keeps your code to enter it. This opens Settings without changing any app windows."
+                         : (session.app == nil ? "Enter your code to skip this practice round. No apps will be unlocked."
+                            : "Ask the person who keeps your code to enter it. This opens this app for \(session.unlockDuration.title).")) { passcode in
+                guard let expiry = try model.bypass(passcode, for: session) else {
+                    throw ChallengeExpiredError()
+                }
+                usedBypass = true
+                expiresAt = expiry
+            }
+        }
     }
 
     private var calculation: some View {
@@ -80,6 +98,17 @@ struct ChallengeView: View {
             Button(session.isSettingsGate ? "Keep my settings" : "Keep it closed") { dismiss() }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
+            if model.hasEmergencyPasscode {
+                Button {
+                    answerFocused = false
+                    showingBypass = true
+                } label: {
+                    Label("Emergency bypass", systemImage: "key")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                }
+                .accessibilityIdentifier("emergency-bypass")
+            }
         }
     }
 
@@ -88,10 +117,10 @@ struct ChallengeView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60)).foregroundStyle(GateTheme.blue)
                 .padding(.top, 20).accessibilityHidden(true)
-            Text(session.app == nil ? "You worked it out." : "Your window is open.")
+            Text(session.app == nil ? (usedBypass ? "Practice bypassed." : "You worked it out.") : "Your window is open.")
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .accessibilityIdentifier("unlock-success")
-            Text("\(session.problem.expression) = \(session.problem.answer)")
+            Text(usedBypass ? "Opened with your emergency passcode." : "\(session.problem.expression) = \(session.problem.answer)")
                 .font(.system(.title2, design: .rounded, weight: .medium))
             if let app = session.app {
                 AppIdentity(app: app).font(.headline)
@@ -122,8 +151,7 @@ struct ChallengeView: View {
             }
             answerFocused = false
             if session.isSettingsGate {
-                onSettingsUnlocked()
-                dismiss()
+                finishSettingsGate()
                 return
             }
             expiresAt = expiry
@@ -131,4 +159,13 @@ struct ChallengeView: View {
             feedback = "Couldn't unlock the app. \(error.localizedDescription)"
         }
     }
+
+    private func finishSettingsGate() {
+        onSettingsUnlocked()
+        dismiss()
+    }
+}
+
+private struct ChallengeExpiredError: LocalizedError {
+    var errorDescription: String? { "This calculation has expired. Close it and start again." }
 }

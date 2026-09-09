@@ -20,5 +20,6 @@ Clone the repo, install XcodeGen, and run `./scripts/run-simulator.sh` to explor
 5. Never call Device Activity monitoring methods while holding that lock. The OS can invoke extensions immediately.
 6. Treat corrupt storage as an error, not permission to silently reset the selection.
 7. Use public SDK APIs with both compile-time and runtime checks for direct shield handoff.
+8. Keep the emergency credential in the device-only Keychain, separate from shared grant state. Both math and passcode completion must validate the active challenge and use the same unlock path. Recheck the current passcode before changing or removing it; previews must never read or write the real credential.
 
 Screen Time integration changes need the [physical-device checklist](docs/device-testing.md). A successful simulator test or signed build proves neither blocking nor background expiry. Report your actual Xcode/iOS versions and the tests you performed in the pull request.

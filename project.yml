@@ -119,10 +119,22 @@ targets:
         TEST_TARGET_NAME: Gate
     dependencies:
       - target: Gate
+  GateAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AppTests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(GATE_BUNDLE_ID).apptests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Gate
 schemes:
   Gate:
     build:
       targets:
         Gate: all
     test:
-      targets: [GateUITests]
+      commandLineArguments:
+        "--demo": true
+      targets: [GateUITests, GateAppTests]

@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .subheadline) private var markerSize = 30
+    @State private var passcodePurpose: PasscodeView.Purpose?
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,7 @@ struct SettingsView: View {
                     Text("Applies to new calculations. Existing windows keep their end time. Time keeps passing when you switch apps or lock your phone.")
                         .font(.footnote).lineSpacing(3)
                 }
+                emergencyBypass
                 Section("Permissions") {
                     Label(model.authorized ? "Screen Time connected" : "Screen Time access needed",
                           systemImage: model.authorized ? "checkmark.shield" : "exclamationmark.shield")
@@ -60,6 +62,37 @@ struct SettingsView: View {
             } message: { Text(model.errorMessage ?? "") }
         }
         .tint(GateTheme.blue)
+        .sheet(item: $passcodePurpose) { purpose in
+            PasscodeView(model: model, purpose: purpose)
+        }
+    }
+
+    private var emergencyBypass: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(model.hasEmergencyPasscode ? "Your backup key is ready" : "Let someone you trust help", systemImage: "key.fill")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundStyle(GateTheme.ink)
+                Text("A parent or friend can keep a four-digit code to skip a calculation when you need access.")
+                    .font(.subheadline).foregroundStyle(GateTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 8)
+            if model.hasEmergencyPasscode {
+                Button("Change passcode") { passcodePurpose = .change }
+                    .accessibilityIdentifier("change-passcode")
+                Button("Turn off emergency bypass", role: .destructive) { passcodePurpose = .remove }
+                    .accessibilityIdentifier("remove-passcode")
+            } else {
+                Button("Set up passcode") { passcodePurpose = .set }
+                    .accessibilityIdentifier("set-passcode")
+            }
+        } header: {
+            informationHeading("Emergency bypass")
+        } footer: {
+            Text("Works on every calculation, including the Settings gate. App access lasts for your chosen unlock time. Changing or removing the code requires the current passcode.")
+                .font(.footnote).lineSpacing(3)
+        }
     }
 
     private var calculation: some View {

@@ -24,7 +24,7 @@
 - Optional known-app launch shortcuts after solving, without guessing opaque token identities.
 - TestFlight distribution after Family Controls entitlement approval for every target.
 
-Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and parental management are outside this first version.
+Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and remote parental management are outside this first version. The optional local emergency passcode can be kept by a parent or friend.
 
 ## Configurable unlock time
 
@@ -80,3 +80,13 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and p
 - [x] Apply to app access, practice, and the Settings gate while retaining offered difficulty and duration.
 - [x] Preserve completed challenges and active unlock windows.
 - [x] Verify app switching, old-answer rejection, empty input, and completed-window preservation in the simulator.
+
+## Emergency passcode
+
+- [x] Optional four-digit passcode setup with confirmation and guidance to hand the phone to a trusted person.
+- [x] Emergency bypass on app, Settings, and practice calculations through the same completion path as math.
+- [x] Require the current passcode to change or remove it; never display the saved code.
+- [x] Store the real credential in the device-only Keychain and preview credentials only in memory.
+- [x] Clear unfinished entry on leaving the foreground; preserve normal challenge refresh and grant expiry rules.
+- [x] Complete simulator interaction, Keychain, and visual verification in light/dark mode and at the largest accessibility text size.
+- [ ] Verify passcode persistence and actual app blocking/expiry on a physical iPhone.

@@ -27,6 +27,12 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Tap Allow challenge notifications after denial | Opens Gate's notification settings instead of repeating the system prompt | Not run |
 | Turn notifications off/on in Settings, then return | Home guidance appears/disappears to match the latest permission | Not run |
 | Wrong answer | Shield remains; challenge explains retry | Not run |
+| Set and confirm emergency passcode, then relaunch Gate | Passcode stays configured and works; code is never displayed | Not run |
+| Wrong emergency code or cancel entry | No app unlock or Settings access | Not run |
+| Correct emergency code on an app challenge | Only that app opens for the offered duration; shield returns after expiry | Not run |
+| Emergency bypass on Settings or practice | No app grant is created or extended | Not run |
+| Leave unfinished passcode entry and return | Input clears, calculation refreshes, same saved code still works | Not run |
+| Change or remove emergency code | Current code required; old code stops working after change/removal | Not run |
 | Leave an unfinished app, practice, or Settings calculation for Calculator, then return | Both numbers and the answer change; input clears; old answer is rejected; difficulty/duration stay the same | Not run |
 | Leave a completed challenge and return | Success remains; an app window keeps its original expiry | Not run |
 | Cancel or swipe challenge away | No grant or unshield operation occurs | Not run |
@@ -69,3 +75,8 @@ The calculation update passes 16 core tests and 12 distinct simulator state/UI t
 
 
 The foreground-refresh update passes **17 core tests and the full 13-test simulator suite**. Switching to the system Settings app and back verifies fresh operands/answers and cleared input for app, practice, and Settings calculations, rejection of the previous answer, and preservation of completed app windows. Calculator is absent from the tested simulator. The final signed Debug iPhone build passes; the physical-device checklist remains open.
+
+
+## Emergency passcode verification
+
+The emergency bypass update passes **20 core tests and 19 distinct simulator state/UI/app-hosted tests** across the suite and focused refinement/recovery runs. Tests cover confirmation, leading zeros, wrong/canceled entry, app/Settings/practice bypass, captured duration and per-app isolation, stale/duplicate session rejection, change/removal, background entry clearing, and Keychain persistence/protection attributes. Generic simulator signing with no developer team also passes the hosted checks. A simulator keyboard animation stall in an existing Settings test required restarting the simulator; the test then passed without an app-code workaround. Light/dark and largest-text screens were inspected, and the final signed Debug iPhone build succeeds. The physical-device checklist remains open.

@@ -37,7 +37,7 @@ No account, server, analytics, ads, subscriptions, or AI. App selection tokens a
 
 ### Choose your calculation
 
-**Settings has its own gate.** Tap Settings and solve one calculation using your **current** digit counts and operation before changing anything. Wrong answers and cancellation keep Settings closed. Access lasts for that visit: closing Settings or leaving Gate requires a fresh calculation next time. Solving the Settings gate never unlocks an app or changes its existing window.
+**Settings has its own gate.** Tap Settings and solve one calculation using your **current** digit counts and operation before changing anything, or use your configured emergency passcode. Wrong answers, incorrect codes, and cancellation keep Settings closed. Access lasts for that visit: closing Settings or leaving Gate requires a fresh gate next time. Passing the Settings gate never unlocks an app or changes its existing window.
 
 Open **Settings → Your calculation** to choose **Add (+), Subtract (−), Multiply (×), or Divide (÷)**. Set each number to **2 digits or 3 digits** independently: two × two, two × three, three × two, or three × three. The example updates as you choose. **Two-digit multiplication remains the default.**
 
@@ -49,6 +49,26 @@ Choices are saved on your iPhone and used by new app-unlock, practice, and Setti
 <a href="docs/screenshots/settings-calculation.png"><img src="docs/screenshots/settings-calculation.png" width="300" alt="Gate calculation settings with a live three-digit multiplication example, four operation buttons, and two independent digit selectors"></a>
 
 *Simulator previews with sample calculations. No real apps are blocked or unlocked.*
+
+### Emergency bypass
+
+Open **Settings → Emergency bypass → Set up passcode**. Hand your iPhone to a parent or trusted friend so they can choose and confirm a **four-digit code**, including codes that start with zero. There is no default code, and setup is optional.
+
+Once configured, every calculation has an **Emergency bypass** button. Tap it and enter the code to skip the calculation:
+
+- **Protected app:** opens only that app for the duration offered on the challenge. Its usual timer and automatic relocking still apply.
+- **Settings:** opens Settings for this visit without changing app windows.
+- **Practice:** finishes the practice round without unlocking apps.
+
+Incorrect codes and cancellation grant nothing. Leaving Gate clears unfinished passcode entry and refreshes the calculation. The same saved code works on the new challenge. **Change passcode** and **Turn off emergency bypass** both require the existing code, even if you entered Settings by solving a calculation. If you forget the code, calculations remain available; Gate cannot display the saved code.
+
+The passcode is stored in the iPhone's Keychain with [device-only, unlocked-device accessibility](https://developer.apple.com/documentation/security/ksecattraccessiblewhenunlockedthisdeviceonly). It does not sync through iCloud and is never written to Gate's shared JSON state. The labeled simulator preview uses a temporary in-memory code that resets on relaunch.
+
+| Set up with someone you trust | Choose the bypass | Enter the private code |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/emergency-setup.png" width="260" alt="Set up an emergency passcode with a parent or trusted friend"> | <img src="docs/screenshots/emergency-challenge.png" width="260" alt="Calculation with an Emergency bypass button"> | <img src="docs/screenshots/emergency-entry-dark.png" width="260" alt="Emergency passcode entry in dark mode to open the selected app for five minutes"> |
+
+*Light and dark simulator previews with sample apps. No real apps are blocked or unlocked; no passcode is shown.*
 
 ### Leaving a calculation
 
@@ -186,11 +206,13 @@ Before relying on the gate, follow the [physical-device checklist](docs/device-t
 ```bash
 ./scripts/test.sh             # Core policy and persistence tests
 ./scripts/build.sh            # Unsigned simulator app + three extensions
-./scripts/test-ui.sh          # Simulator interaction tests; auto-selects an iPhone
+./scripts/test-ui.sh          # Simulator app, Keychain, and UI tests; auto-selects an iPhone
 swift scripts/generate-icon.swift
 ```
 
-Core tests cover all four operations and digit combinations, exact whole-number division, answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, and concurrent writers. Simulator tests cover saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for gating Settings on every visit, refreshing unfinished calculations after an app switch, returning from the background, changing calculation settings and duration, wrong/correct answers, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
+Core tests cover all four operations and digit combinations, exact whole-number division, answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, concurrent writers, and passcode validation and credential failures. Simulator tests cover Keychain persistence and protection attributes, saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for gating Settings on every visit, refreshing unfinished calculations after an app switch, returning from the background, changing calculation settings and duration, wrong/correct answers, emergency bypass and passcode management, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
+
+The simulator test script uses local ad-hoc signing so app-hosted Keychain tests can access their isolated test credentials. It needs no developer account. The test action launches Gate with `--demo`; ordinary Run and device installation still launch the real app. You can pass Xcode test filters after an explicit simulator ID, for example `./scripts/test-ui.sh <simulator-udid> -only-testing:GateAppTests`.
 
 The notification test adds `--test-notifications` to `--demo --uitesting` to exercise the real system prompt and Settings handoff while keeping app blocking in preview mode. Ordinary previews never request notification permission. The first test run denies the prompt by default; a fresh test installation with `TEST_RUNNER_GATE_NOTIFICATION_TEST_RESPONSE=allow` exercises granting it. Later runs reuse the OS's saved permission. Per-app notification toggles are unavailable in the tested simulator, so changing those settings and returning to Gate remains a physical-device check.
 
@@ -201,7 +223,7 @@ The notification test adds `--test-notifications` to `--demo --uitesting` to exe
 | `Shared/` | App tokens, pending challenges, scheduling, shields, and handoff |
 | `Extensions/` | Shield action, shield appearance, and background expiry |
 | `Config/` | Shared build settings, entitlements, and signing template |
-| `Tests/`, `UITests/` | Core and simulator flow tests |
+| `Tests/`, `AppTests/`, `UITests/` | Core tests, app-hosted Keychain/access checks, and simulator flows |
 | `docs/` | Design decisions, screenshots, device checklist, and roadmap |
 
 Build products, generated Xcode projects, local signing settings, credentials, provisioning profiles, and machine-specific notes are ignored. Source files, shared entitlement declarations, icon assets, and documentation screenshots are versioned.

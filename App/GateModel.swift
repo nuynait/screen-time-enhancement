@@ -43,9 +43,11 @@ final class GateModel: ObservableObject {
     @Published var selection = FamilyActivitySelection()
     @Published private(set) var notificationAuthorization: UNAuthorizationStatus?
     @Published private(set) var isUpdatingNotifications = false
+    @Published private(set) var hasEmergencyPasscode = false
     let isDemo: Bool
     private let testsNotifications: Bool
     private var service: GateService?
+    private let emergencyPasscode: EmergencyPasscode
     private var challengeToRefresh: UUID?
     private var completedChallengeID: UUID?
     private let demoApps = [
@@ -62,6 +64,16 @@ final class GateModel: ObservableObject {
         isDemo = false
         testsNotifications = false
         #endif
+        #if DEBUG
+        let passcodeStorage: any EmergencyPasscodeStorage = isDemo
+            ? PreviewPasscodeStorage()
+            : KeychainPasscodeStorage(service: Bundle.main.bundleIdentifier! + ".emergency-bypass")
+        #else
+        let passcodeStorage = KeychainPasscodeStorage(service: Bundle.main.bundleIdentifier! + ".emergency-bypass")
+        #endif
+        emergencyPasscode = EmergencyPasscode(storage: passcodeStorage)
+        do { hasEmergencyPasscode = try emergencyPasscode.isConfigured }
+        catch { errorMessage = error.localizedDescription }
         if isDemo {
             authorized = true
             if !testsNotifications { notificationAuthorization = .authorized }
@@ -220,6 +232,8 @@ final class GateModel: ObservableObject {
     }
 
     func returnToForeground() {
+        do { hasEmergencyPasscode = try emergencyPasscode.isConfigured }
+        catch { errorMessage = error.localizedDescription }
         defer { challengeToRefresh = nil }
         guard let session = challenge, challengeToRefresh == session.id,
               completedChallengeID != session.id else { return }
@@ -234,8 +248,32 @@ final class GateModel: ObservableObject {
     }
 
     func submit(_ answer: String, for session: ChallengeSession) throws -> Date? {
+        guard session.problem.accepts(answer) else { return nil }
+        return try complete(session)
+    }
+
+    func bypass(_ passcode: String, for session: ChallengeSession) throws -> Date? {
+        try emergencyPasscode.verify(passcode)
+        return try complete(session)
+    }
+
+    func verifyEmergencyPasscode(_ passcode: String) throws {
+        try emergencyPasscode.verify(passcode)
+    }
+
+    func setEmergencyPasscode(_ passcode: String, confirmation: String, current: String?) throws {
+        try emergencyPasscode.set(passcode, confirmation: confirmation, current: current)
+        hasEmergencyPasscode = true
+    }
+
+    func removeEmergencyPasscode(current: String) throws {
+        try emergencyPasscode.remove(current: current)
+        hasEmergencyPasscode = false
+    }
+
+    private func complete(_ session: ChallengeSession) throws -> Date? {
         guard challenge?.id == session.id, challengeToRefresh != session.id,
-              completedChallengeID != session.id, session.problem.accepts(answer) else { return nil }
+              completedChallengeID != session.id else { return nil }
         // Practice and Settings access never create, extend, or revoke app grants.
         guard let app = session.app else {
             completedChallengeID = session.id

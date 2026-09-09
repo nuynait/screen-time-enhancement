@@ -2,6 +2,184 @@ import XCTest
 
 final class GateUITests: XCTestCase {
     @MainActor
+    func testEmergencyBypassAcrossAppSettingsAndPractice() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        let first = "11111111-1111-1111-1111-111111111111"
+        let second = "22222222-2222-2222-2222-222222222222"
+        app.buttons["solve-" + first].tap()
+        XCTAssertFalse(app.buttons["emergency-bypass"].exists)
+        app.buttons["Cancel"].tap()
+        openSettings(app)
+        setUpPasscode(app)
+        let duration = app.buttons["unlock-duration-picker"]
+        for _ in 0..<8 where !duration.isHittable { app.swipeDown() }
+        duration.tap()
+        app.buttons["5 minutes"].tap()
+        app.buttons["Done"].tap()
+        app.buttons["solve-" + first].tap()
+        capture(app, "Calculation with emergency bypass")
+        openBypass(app)
+        capture(app, "Emergency passcode entry")
+        app.buttons["cancel-passcode"].tap()
+        XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+        openBypass(app)
+        enterPasscode(app, "9999")
+        XCTAssertTrue(app.staticTexts["passcode-feedback"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Opened with your emergency passcode."].exists)
+        XCTAssertFalse(app.staticTexts["47 × 63 = 2961"].exists)
+        let remaining = app.staticTexts["unlock-countdown"].label
+        XCTAssertTrue(remaining.hasPrefix("4:") || remaining == "5:00", remaining)
+        capture(app, "App window opened with emergency passcode")
+        app.buttons["finish-challenge"].tap()
+        let countdown = app.staticTexts["countdown-" + first]
+        XCTAssertTrue(countdown.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["solve-" + second].exists)
+
+        app.buttons["settings"].tap()
+        openBypass(app)
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+        let practice = app.buttons["Try a practice calculation"]
+        for _ in 0..<10 where !practice.isHittable { app.swipeUp() }
+        practice.tap()
+        openBypass(app)
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["unlock-success"].label, "Practice bypassed.")
+        XCTAssertFalse(app.staticTexts["unlock-countdown"].exists)
+        app.buttons["finish-challenge"].tap()
+        XCTAssertTrue(app.buttons["lock-" + first].exists)
+        XCTAssertTrue(app.buttons["solve-" + second].exists)
+        // Preview passcodes are intentionally isolated from the persistent Keychain.
+        app.terminate()
+        app.launch()
+        app.buttons["solve-" + first].tap()
+        XCTAssertFalse(app.buttons["emergency-bypass"].exists)
+    }
+
+    @MainActor
+    func testPasscodeManagementAndBackgroundDoNotLeaveAccessOpen() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        openSettings(app)
+        setUpPasscode(app)
+        app.buttons["change-passcode"].tap()
+        enterPasscode(app, "9999")
+        XCTAssertTrue(app.staticTexts["passcode-feedback"].exists)
+        enterPasscode(app, "0123")
+        enterPasscode(app, "4567")
+        enterPasscode(app, "4567")
+        XCTAssertTrue(app.buttons["change-passcode"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        app.buttons["settings"].tap()
+        openBypass(app)
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["passcode-feedback"].exists)
+        let input = app.secureTextFields["passcode-entry"]
+        input.tap()
+        input.typeText("45")
+        XCTAssertFalse(app.buttons["submit-passcode"].isEnabled)
+        let otherApp = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        otherApp.launch()
+        app.activate()
+        // Returning creates a new challenge and dismisses its unfinished passcode sheet.
+        XCTAssertTrue(app.staticTexts["challenge-refreshed"].waitForExistence(timeout: 5))
+        XCTAssertFalse(input.exists)
+        openBypass(app)
+        XCTAssertFalse(app.buttons["submit-passcode"].isEnabled)
+        enterPasscode(app, "4567")
+        XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+        otherApp.activate()
+        app.activate()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.staticTexts["calculation-example"])
+        waitForExpectations(timeout: 5)
+        app.buttons["settings"].tap()
+        openBypass(app)
+        enterPasscode(app, "4567")
+        let remove = app.buttons["remove-passcode"]
+        for _ in 0..<8 where !remove.isHittable { app.swipeUp() }
+        remove.tap()
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["passcode-feedback"].exists)
+        app.buttons["cancel-passcode"].tap()
+        XCTAssertTrue(remove.waitForExistence(timeout: 5))
+        remove.tap()
+        enterPasscode(app, "4567")
+        XCTAssertTrue(app.buttons["set-passcode"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        app.buttons["settings"].tap()
+        XCTAssertFalse(app.buttons["emergency-bypass"].exists)
+        answerSettingsGate(app)
+    }
+
+    @MainActor
+    func testEmergencyPasscodeAtLargestAccessibilitySize() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        openSettings(app)
+        setUpPasscode(app)
+        app.buttons["Done"].tap()
+        app.buttons["settings"].tap()
+        openBypass(app)
+        capture(app, "Emergency bypass accessibility heading")
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func setUpPasscode(_ app: XCUIApplication) {
+        let setup = app.buttons["set-passcode"]
+        for _ in 0..<12 where !setup.isHittable { app.swipeUp() }
+        capture(app, "Emergency bypass Settings")
+        setup.tap()
+        capture(app, "Choose emergency passcode")
+        enterPasscode(app, "0123")
+        enterPasscode(app, "9999")
+        XCTAssertTrue(app.staticTexts["passcode-feedback"].waitForExistence(timeout: 3))
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.buttons["change-passcode"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func openBypass(_ app: XCUIApplication) {
+        let bypass = app.buttons["emergency-bypass"]
+        XCTAssertTrue(bypass.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !bypass.isHittable { app.swipeUp() }
+        bypass.tap()
+        XCTAssertTrue(app.secureTextFields["passcode-entry"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func enterPasscode(_ app: XCUIApplication, _ code: String) {
+        let input = app.secureTextFields["passcode-entry"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !input.isHittable { app.swipeUp() }
+        input.tap()
+        input.typeText(code)
+        let submit = app.buttons["submit-passcode"]
+        for _ in 0..<8 where !submit.isHittable { app.swipeUp() }
+        if app.launchArguments.contains("UICTContentSizeCategoryAccessibilityXXXL") {
+            capture(app, "Emergency passcode accessibility controls")
+        }
+        submit.tap()
+    }
+
+    @MainActor
+    private func capture(_ app: XCUIApplication, _ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor
     func testLeavingEachChallengeRefreshesNumbersAndRejectsThePreviousAnswer() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--uitesting"]

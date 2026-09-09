@@ -72,10 +72,10 @@ struct HomeView: View {
                 // Present only after the successful gate has finished dismissing its sheet.
                 if openSettingsAfterChallenge {
                     openSettingsAfterChallenge = false
-                    showingSettings = true
+                    showingSettings = scenePhase == .active
                 }
             }) { session in
-                ChallengeView(model: model, session: session) { openSettingsAfterChallenge = true }
+                ChallengeView(model: model, session: session) { openSettingsAfterChallenge = scenePhase == .active }
                     .id(session.id)
             }
             .alert("Gate needs attention", isPresented: Binding(
