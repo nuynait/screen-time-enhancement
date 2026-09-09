@@ -14,7 +14,7 @@ Clone the repo, install XcodeGen, and run `./scripts/run-simulator.sh` to explor
 ## Preserve the gate's guarantees
 
 1. Register the OS expiry **before** removing an app's shield. A failed registration grants no access.
-2. Keep windows per app and expire them from persisted dates. Reopening Gate or changing the duration preference must not restart a timer. A calculation grants the duration it offered when opened; legacy state defaults to 15 minutes.
+2. Keep windows per app and expire them from persisted dates. Reopening Gate or changing the duration preference must not restart a timer. A calculation grants the duration it offered when opened; legacy state defaults to 15 minutes. Emergency app access separately confirms a 15-minute-to-midnight window after verifying the code. Never grant access at verification, reuse a canceled/backgrounded authorization, or move a captured midnight into a later day.
 3. Preserve newer active windows when an old monitor callback arrives.
 4. Serialize shared app/extension writes with the file lock; an actor or queue in one process cannot protect another process's writes.
 5. Never call Device Activity monitoring methods while holding that lock. The OS can invoke extensions immediately.

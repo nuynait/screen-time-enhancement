@@ -8,10 +8,14 @@ struct UnlockGrant: Codable, Equatable, Identifiable {
     let expiresAt: Date
 
     init(appID: UUID, duration: UnlockDuration = .defaultValue, now: Date = Date(), id: UUID = UUID()) {
+        self.init(appID: appID, expiresAt: now.addingTimeInterval(duration.seconds), now: now, id: id)
+    }
+
+    init(appID: UUID, expiresAt: Date, now: Date = Date(), id: UUID = UUID()) {
         self.id = id
         self.appID = appID
         issuedAt = now
-        expiresAt = now.addingTimeInterval(duration.seconds)
+        self.expiresAt = expiresAt
     }
 
     var activityName: String { Self.activityPrefix + id.uuidString }

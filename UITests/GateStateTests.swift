@@ -2,6 +2,24 @@ import DeviceActivity
 import XCTest
 
 final class GateStateTests: XCTestCase {
+    func testEmergencySchedulesResolveAndStateReloadKeepsExactExpiry() throws {
+        let now = Date()
+        let options = try EmergencyUnlockOptions(now: now)
+        for duration in options.available(at: now) {
+            let grant = UnlockGrant(appID: UUID(), expiresAt: try options.expiry(for: duration, at: now), now: now)
+            var state = GateState()
+            state.grants = [grant]
+            let loaded = try JSONDecoder().decode(GateState.self, from: JSONEncoder().encode(state))
+            XCTAssertEqual(loaded.grants, [grant])
+            let bounds = UnlockSchedule(grant: loaded.grants[0])
+            let schedule = DeviceActivitySchedule(intervalStart: bounds.start, intervalEnd: bounds.end, repeats: false)
+            let interval = try XCTUnwrap(schedule.nextInterval, duration.title)
+            XCTAssertLessThanOrEqual(interval.start, now)
+            XCTAssertGreaterThanOrEqual(interval.end, grant.expiresAt)
+            XCTAssertLessThan(interval.end.timeIntervalSince(grant.expiresAt), 1)
+        }
+    }
+
     func testDeviceActivityResolvesEachDurationToItsUpcomingExpiry() throws {
         let now = Date()
         for duration in UnlockDuration.allCases {

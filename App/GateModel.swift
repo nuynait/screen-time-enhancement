@@ -50,6 +50,7 @@ final class GateModel: ObservableObject {
     private let emergencyPasscode: EmergencyPasscode
     private var challengeToRefresh: UUID?
     private var completedChallengeID: UUID?
+    private var emergencyAuthorization: (sessionID: UUID, options: EmergencyUnlockOptions)?
     private let demoApps = [
         AppRow(id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, token: nil, demoName: "Rednote"),
         AppRow(id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, token: nil, demoName: "Bilibili")
@@ -204,6 +205,7 @@ final class GateModel: ObservableObject {
     }
 
     private func beginChallenge(destination: ChallengeSession.Destination) {
+        emergencyAuthorization = nil
         if case .app = destination, !authorized {
             errorMessage = GateError.authorizationRequired.localizedDescription
             return
@@ -223,6 +225,7 @@ final class GateModel: ObservableObject {
     }
 
     func leaveForeground() {
+        emergencyAuthorization = nil
         guard let session = challenge, completedChallengeID != session.id else {
             challengeToRefresh = nil
             return
@@ -254,7 +257,32 @@ final class GateModel: ObservableObject {
 
     func bypass(_ passcode: String, for session: ChallengeSession) throws -> Date? {
         try emergencyPasscode.verify(passcode)
+        // App access requires a separate, explicit duration confirmation.
+        guard session.app == nil else { return nil }
         return try complete(session)
+    }
+
+    func authorizeEmergencyUnlock(_ passcode: String, for session: ChallengeSession,
+                                  now: Date = Date(), calendar: Calendar = .current) throws -> EmergencyUnlockOptions {
+        emergencyAuthorization = nil
+        try emergencyPasscode.verify(passcode)
+        guard isCurrent(session), session.app != nil else { throw EmergencyUnlockError.expired }
+        let options = try EmergencyUnlockOptions(now: now, calendar: calendar)
+        emergencyAuthorization = (session.id, options)
+        return options
+    }
+
+    func confirmEmergencyUnlock(_ duration: EmergencyUnlockDuration, options: EmergencyUnlockOptions,
+                                for session: ChallengeSession, now: Date = Date()) throws -> Date? {
+        guard isCurrent(session), let app = session.app,
+              emergencyAuthorization?.sessionID == session.id,
+              emergencyAuthorization?.options == options else { throw EmergencyUnlockError.expired }
+        let expiry = try options.expiry(for: duration, at: now)
+        return try complete(session, grant: UnlockGrant(appID: app.id, expiresAt: expiry, now: now))
+    }
+
+    func cancelEmergencyUnlock(for session: ChallengeSession) {
+        if emergencyAuthorization?.sessionID == session.id { emergencyAuthorization = nil }
     }
 
     func verifyEmergencyPasscode(_ passcode: String) throws {
@@ -263,33 +291,41 @@ final class GateModel: ObservableObject {
 
     func setEmergencyPasscode(_ passcode: String, confirmation: String, current: String?) throws {
         try emergencyPasscode.set(passcode, confirmation: confirmation, current: current)
+        emergencyAuthorization = nil
         hasEmergencyPasscode = true
     }
 
     func removeEmergencyPasscode(current: String) throws {
         try emergencyPasscode.remove(current: current)
+        emergencyAuthorization = nil
         hasEmergencyPasscode = false
     }
 
-    private func complete(_ session: ChallengeSession) throws -> Date? {
-        guard challenge?.id == session.id, challengeToRefresh != session.id,
-              completedChallengeID != session.id else { return nil }
+    private func isCurrent(_ session: ChallengeSession) -> Bool {
+        challenge?.id == session.id && challengeToRefresh != session.id && completedChallengeID != session.id
+    }
+
+    private func complete(_ session: ChallengeSession, grant offeredGrant: UnlockGrant? = nil) throws -> Date? {
+        guard isCurrent(session) else { return nil }
         // Practice and Settings access never create, extend, or revoke app grants.
         guard let app = session.app else {
             completedChallengeID = session.id
+            emergencyAuthorization = nil
             return Date()
         }
+        let grant = offeredGrant ?? UnlockGrant(appID: app.id, duration: session.unlockDuration)
         if isDemo {
-            let grant = UnlockGrant(appID: app.id, duration: session.unlockDuration)
             state.grants.removeAll { $0.appID == app.id }
             state.grants.append(grant)
             completedChallengeID = session.id
+            emergencyAuthorization = nil
             return grant.expiresAt
         }
         guard let service else { throw GateError.missingAppGroup }
-        state = try service.unlock(appID: app.id, duration: session.unlockDuration)
+        state = try service.unlock(grant)
         completedChallengeID = session.id
-        return grant(for: app.id)?.expiresAt
+        emergencyAuthorization = nil
+        return grant.expiresAt
     }
 
     func lock(_ app: AppRow) {

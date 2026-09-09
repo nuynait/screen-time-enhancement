@@ -10,6 +10,7 @@ struct PasscodeView: View {
     let purpose: Purpose
     var bypassTitle = "Bypass calculation"
     var bypassDetail = "Ask the person who keeps your passcode to enter it."
+    var dismissAfterBypass = true
     var onBypass: ((String) throws -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -155,7 +156,9 @@ struct PasscodeView: View {
             if purpose == .bypass {
                 guard let onBypass else { return }
                 try onBypass(entry)
-                dismiss()
+                entry = ""
+                focused = false
+                if dismissAfterBypass { dismiss() }
             } else if purpose == .remove {
                 try model.removeEmergencyPasscode(current: entry)
                 dismiss()

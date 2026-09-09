@@ -56,17 +56,19 @@ Open **Settings → Emergency bypass → Set up passcode**. Hand your iPhone to 
 
 Once configured, every calculation has an **Emergency bypass** button. Tap it and enter the code to skip the calculation:
 
-- **Protected app:** opens only that app for the duration offered on the challenge. Its usual timer and automatic relocking still apply.
+- **Protected app:** after the correct code, choose **15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, or Today (until midnight)**. Review when it will lock again, then tap **Unlock app**. Only that app opens; your normal calculation duration stays unchanged.
 - **Settings:** opens Settings for this visit without changing app windows.
 - **Practice:** finishes the practice round without unlocking apps.
 
-Incorrect codes and cancellation grant nothing. Leaving Gate clears unfinished passcode entry and refreshes the calculation. The same saved code works on the new challenge. **Change passcode** and **Turn off emergency bypass** both require the existing code, even if you entered Settings by solving a calculation. If you forget the code, calculations remain available; Gate cannot display the saved code.
+**Rest of today** ends at the next local midnight, rather than 24 hours later. Timed choices longer than the remaining day disappear. During the last 15 minutes of the day, the only choice is a full 15-minute window, which ends tomorrow. Timed windows start when you confirm; an open picker cannot carry today’s authorization into a new day.
+
+Entering the correct code alone grants nothing. Incorrect codes, canceled entry, and canceling the duration picker all keep the app closed. Leaving Gate clears unfinished entry and duration authorization, refreshes the calculation, and requires the code again. The same saved code works on the new challenge. **Change passcode** and **Turn off emergency bypass** both require the existing code, even if you entered Settings by solving a calculation. If you forget the code, calculations remain available; Gate cannot display the saved code.
 
 The passcode is stored in the iPhone's Keychain with [device-only, unlocked-device accessibility](https://developer.apple.com/documentation/security/ksecattraccessiblewhenunlockedthisdeviceonly). It does not sync through iCloud and is never written to Gate's shared JSON state. The labeled simulator preview uses a temporary in-memory code that resets on relaunch.
 
-| Set up with someone you trust | Choose the bypass | Enter the private code |
+| Enter the private code | Choose a window | Open until midnight |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/emergency-setup.png" width="260" alt="Set up an emergency passcode with a parent or trusted friend"> | <img src="docs/screenshots/emergency-challenge.png" width="260" alt="Calculation with an Emergency bypass button"> | <img src="docs/screenshots/emergency-entry-dark.png" width="260" alt="Emergency passcode entry in dark mode to open the selected app for five minutes"> |
+| <img src="docs/screenshots/emergency-entry-dark.png" width="260" alt="Masked emergency passcode entry before choosing an unlock time"> | <img src="docs/screenshots/emergency-duration.png" width="260" alt="Emergency duration choices with a 15-minute default and relock preview"> | <img src="docs/screenshots/emergency-today-dark.png" width="260" alt="Rest of today selected in dark mode, with automatic relocking at midnight"> |
 
 *Light and dark simulator previews with sample apps. No real apps are blocked or unlocked; no passcode is shown.*
 
@@ -210,7 +212,7 @@ Before relying on the gate, follow the [physical-device checklist](docs/device-t
 swift scripts/generate-icon.swift
 ```
 
-Core tests cover all four operations and digit combinations, exact whole-number division, answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, concurrent writers, and passcode validation and credential failures. Simulator tests cover Keychain persistence and protection attributes, saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for gating Settings on every visit, refreshing unfinished calculations after an app switch, returning from the background, changing calculation settings and duration, wrong/correct answers, emergency bypass and passcode management, cancellation, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
+Core tests cover all four operations and digit combinations, exact whole-number division, answer validation, every supported duration, per-app access, the expiry boundary, midnight/DST schedule dates, clock rollback, persistence, corruption, concurrent writers, passcode validation and credential failures, and emergency duration limits through local midnight on both daylight-saving transitions. Simulator tests cover Keychain persistence and protection attributes, saved preferences and old-state compatibility, Apple's schedule date resolution, and UI flows for gating Settings on every visit, refreshing unfinished calculations after an app switch, returning from the background, changing calculation settings and duration, wrong/correct answers, emergency bypass and passcode management, duration confirmation and cancellation after verification, and early locking. UI interactions use a deterministic calculation in an explicit Debug preview.
 
 The simulator test script uses local ad-hoc signing so app-hosted Keychain tests can access their isolated test credentials. It needs no developer account. The test action launches Gate with `--demo`; ordinary Run and device installation still launch the real app. You can pass Xcode test filters after an explicit simulator ID, for example `./scripts/test-ui.sh <simulator-udid> -only-testing:GateAppTests`.
 

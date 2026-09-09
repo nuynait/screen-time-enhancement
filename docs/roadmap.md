@@ -90,3 +90,12 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and r
 - [x] Clear unfinished entry on leaving the foreground; preserve normal challenge refresh and grant expiry rules.
 - [x] Complete simulator interaction, Keychain, and visual verification in light/dark mode and at the largest accessibility text size.
 - [ ] Verify passcode persistence and actual app blocking/expiry on a physical iPhone.
+
+
+## Emergency unlock windows
+
+- [x] Choose a duration after verifying the passcode: 15/30 minutes, 1/2/4 hours, or the rest of today.
+- [x] Preview automatic relocking and require explicit confirmation before granting access.
+- [x] Bound choices by local midnight, with a full 15-minute minimum near midnight and daylight-saving-aware day boundaries.
+- [x] Invalidate pending duration authorization on cancel, app switching, a new challenge, credential changes, or a new day.
+- [ ] Verify extended emergency windows and midnight relocking on a physical iPhone.

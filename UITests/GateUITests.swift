@@ -29,11 +29,24 @@ final class GateUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["passcode-feedback"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["unlock-success"].exists)
         enterPasscode(app, "0123")
+        let confirm = app.buttons["confirm-emergency-unlock"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+        XCTAssertTrue(app.buttons["emergency-duration-fifteenMinutes"].isSelected)
+        let thirty = app.buttons["emergency-duration-thirtyMinutes"]
+        if thirty.exists {
+            thirty.tap()
+            XCTAssertTrue(thirty.isSelected)
+            XCTAssertFalse(app.buttons["emergency-duration-fifteenMinutes"].isSelected)
+            app.buttons["emergency-duration-fifteenMinutes"].tap()
+        }
+        capture(app, "Emergency duration choices")
+        confirm.tap()
         XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Opened with your emergency passcode."].exists)
         XCTAssertFalse(app.staticTexts["47 × 63 = 2961"].exists)
         let remaining = app.staticTexts["unlock-countdown"].label
-        XCTAssertTrue(remaining.hasPrefix("4:") || remaining == "5:00", remaining)
+        XCTAssertTrue(remaining.hasPrefix("14:") || remaining == "15:00", remaining)
         capture(app, "App window opened with emergency passcode")
         app.buttons["finish-challenge"].tap()
         let countdown = app.staticTexts["countdown-" + first]
@@ -126,11 +139,95 @@ final class GateUITests: XCTestCase {
         openSettings(app)
         setUpPasscode(app)
         app.buttons["Done"].tap()
-        app.buttons["settings"].tap()
+        app.buttons["solve-11111111-1111-1111-1111-111111111111"].tap()
         openBypass(app)
         capture(app, "Emergency bypass accessibility heading")
         enterPasscode(app, "0123")
-        XCTAssertTrue(app.staticTexts["calculation-example"].waitForExistence(timeout: 5))
+        let choice = app.buttons["emergency-duration-fifteenMinutes"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !choice.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        choice.tap()
+        capture(app, "Emergency duration accessibility choices")
+        let today = app.buttons["emergency-duration-today"]
+        if today.exists {
+            // XCTest can report offscreen SwiftUI buttons as hittable. Keep the whole row
+            // above the fixed footer, and drag inside the content instead of across that footer.
+            for _ in 0..<12 {
+                let top = app.navigationBars.firstMatch.frame.maxY + 12
+                let bottom = app.staticTexts["LOCKS AGAIN"].frame.minY - 24
+                if today.frame.minY >= top && today.frame.maxY <= bottom { break }
+                let scrollUp = today.frame.maxY > bottom
+                let distance = min(abs(today.frame.midY - (top + bottom) / 2), (bottom - top) * 0.6)
+                let start = scrollUp ? bottom - 20 : top + 20
+                let end = start + (scrollUp ? -distance : distance)
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                origin.withOffset(CGVector(dx: app.frame.midX, dy: start))
+                    .press(forDuration: 0.1, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: end)),
+                           withVelocity: .slow, thenHoldForDuration: 0.1)
+            }
+            XCTAssertLessThanOrEqual(today.frame.maxY, app.staticTexts["LOCKS AGAIN"].frame.minY - 24)
+            XCTAssertGreaterThanOrEqual(today.frame.minY, app.navigationBars.firstMatch.frame.maxY + 12)
+            XCTAssertTrue(today.isHittable)
+            today.tap()
+            XCTAssertTrue(today.isSelected)
+            XCTAssertEqual(app.staticTexts["emergency-relock-time"].label, "Midnight tonight")
+            capture(app, "Emergency today accessibility controls")
+        }
+        let confirm = app.buttons["confirm-emergency-unlock"]
+        XCTAssertTrue(confirm.isHittable)
+        confirm.tap()
+        XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testEmergencyDurationCancellationBackgroundAndRestOfToday() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--uitesting"]
+        app.launch()
+        openSettings(app)
+        setUpPasscode(app)
+        app.buttons["Done"].tap()
+        let first = "11111111-1111-1111-1111-111111111111"
+        app.buttons["solve-" + first].tap()
+        openBypass(app)
+        capture(app, "Emergency passcode entry")
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.buttons["confirm-emergency-unlock"].waitForExistence(timeout: 5))
+        let initialToday = app.buttons["emergency-duration-today"]
+        if initialToday.exists {
+            for _ in 0..<5 where !initialToday.isHittable { app.swipeUp() }
+            initialToday.tap()
+            XCTAssertTrue(initialToday.isSelected)
+            capture(app, "Emergency day window")
+        }
+        app.buttons["cancel-emergency-duration"].tap()
+        XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+        openBypass(app)
+        enterPasscode(app, "0123")
+        XCTAssertTrue(app.buttons["confirm-emergency-unlock"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["emergency-duration-fifteenMinutes"].isSelected)
+        XCUIApplication(bundleIdentifier: "com.apple.Preferences").activate()
+        app.activate()
+        XCTAssertTrue(app.staticTexts["challenge-refreshed"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["confirm-emergency-unlock"].exists)
+        XCTAssertFalse(app.staticTexts["unlock-success"].exists)
+        openBypass(app)
+        enterPasscode(app, "0123")
+        let today = app.buttons["emergency-duration-today"]
+        XCTAssertTrue(app.buttons["confirm-emergency-unlock"].waitForExistence(timeout: 5))
+        // The last 15 minutes of the day intentionally offer only a 15-minute window.
+        if today.exists {
+            for _ in 0..<5 where !today.isHittable { app.swipeUp() }
+            today.tap()
+            XCTAssertTrue(today.isSelected)
+            XCTAssertEqual(app.staticTexts["emergency-relock-time"].label, "Midnight tonight")
+            capture(app, "Emergency rest of today selected")
+        }
+        app.buttons["confirm-emergency-unlock"].tap()
+        XCTAssertTrue(app.staticTexts["unlock-success"].waitForExistence(timeout: 5))
+        app.buttons["finish-challenge"].tap()
+        XCTAssertTrue(app.buttons["lock-" + first].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["solve-22222222-2222-2222-2222-222222222222"].exists)
     }
 
     @MainActor
@@ -173,6 +270,8 @@ final class GateUITests: XCTestCase {
 
     @MainActor
     private func capture(_ app: XCUIApplication, _ name: String) {
+        // Let button highlights and sheet transitions finish before keeping a visual artifact.
+        Thread.sleep(forTimeInterval: 0.5)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

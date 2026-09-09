@@ -10,6 +10,7 @@ struct ChallengeView: View {
     @State private var expiresAt: Date?
     @State private var showingBypass = false
     @State private var usedBypass = false
+    @State private var emergencyOptions: EmergencyUnlockOptions?
     @FocusState private var answerFocused: Bool
 
     var body: some View {
@@ -35,19 +36,33 @@ struct ChallengeView: View {
         }
         .tint(GateTheme.blue)
         .sheet(isPresented: $showingBypass, onDismiss: {
+            model.cancelEmergencyUnlock(for: session)
+            emergencyOptions = nil
             if session.isSettingsGate, expiresAt != nil { finishSettingsGate() }
         }) {
-            PasscodeView(model: model, purpose: .bypass,
-                         bypassTitle: session.isSettingsGate ? "Open Settings" : (session.app == nil ? "Finish practice" : "Unlock for \(session.unlockDuration.title)"),
-                         bypassDetail: session.isSettingsGate
-                         ? "Ask the person who keeps your code to enter it. This opens Settings without changing any app windows."
-                         : (session.app == nil ? "Enter your code to skip this practice round. No apps will be unlocked."
-                            : "Ask the person who keeps your code to enter it. This opens this app for \(session.unlockDuration.title).")) { passcode in
-                guard let expiry = try model.bypass(passcode, for: session) else {
-                    throw ChallengeExpiredError()
+            if let emergencyOptions {
+                EmergencyUnlockView(model: model, session: session, options: emergencyOptions) { expiry in
+                    usedBypass = true
+                    expiresAt = expiry
                 }
-                usedBypass = true
-                expiresAt = expiry
+            } else {
+                PasscodeView(model: model, purpose: .bypass,
+                             bypassTitle: session.isSettingsGate ? "Open Settings" : (session.app == nil ? "Finish practice" : "Choose unlock time"),
+                             bypassDetail: session.isSettingsGate
+                             ? "Ask the person who keeps your code to enter it. This opens Settings without changing any app windows."
+                             : (session.app == nil ? "Enter your code to skip this practice round. No apps will be unlocked."
+                                : "Ask the person who keeps your code to enter it. Then choose how long to open this app, from 15 minutes to the rest of today."),
+                             dismissAfterBypass: session.app == nil) { passcode in
+                    if session.app != nil {
+                        emergencyOptions = try model.authorizeEmergencyUnlock(passcode, for: session)
+                        return
+                    }
+                    guard let expiry = try model.bypass(passcode, for: session) else {
+                        throw ChallengeExpiredError()
+                    }
+                    usedBypass = true
+                    expiresAt = expiry
+                }
             }
         }
     }
@@ -124,7 +139,7 @@ struct ChallengeView: View {
                 .font(.system(.title2, design: .rounded, weight: .medium))
             if let app = session.app {
                 AppIdentity(app: app).font(.headline)
-                Text("Return to the app. It will lock again at \(date.formatted(date: .omitted, time: .shortened)).")
+                Text("Return to the app. It will lock again \(relockDescription(date)).")
                     .font(.body).foregroundStyle(GateTheme.muted)
                 Text(timerInterval: Date()...max(Date(), date), countsDown: true)
                     .font(.system(size: 48, weight: .medium, design: .rounded)).monospacedDigit()
@@ -137,6 +152,13 @@ struct ChallengeView: View {
             }
             Button("Done") { dismiss() }.buttonStyle(GateButtonStyle()).accessibilityIdentifier("finish-challenge")
         }
+    }
+
+    private func relockDescription(_ date: Date) -> String {
+        let time = date.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDateInToday(date) { return "at \(time)" }
+        if Calendar.current.isDateInTomorrow(date) { return "tomorrow at \(time)" }
+        return "on \(date.formatted(date: .abbreviated, time: .shortened))"
     }
 
     private func submit() {

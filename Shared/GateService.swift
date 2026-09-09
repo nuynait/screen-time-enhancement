@@ -64,10 +64,11 @@ final class GateService {
         _ = try storage.update { $0.pendingChallenge = nil }
     }
 
-    func unlock(appID: UUID, duration: UnlockDuration, now: Date = Date()) throws -> GateState {
+    func unlock(_ grant: UnlockGrant) throws -> GateState {
+        let now = grant.issuedAt
+        let appID = grant.appID
         try requireAuthorization()
         _ = try reconcile(at: now)
-        let grant = UnlockGrant(appID: appID, duration: duration, now: now)
         let name = DeviceActivityName(grant.activityName)
         let bounds = UnlockSchedule(grant: grant)
         let schedule = DeviceActivitySchedule(intervalStart: bounds.start, intervalEnd: bounds.end, repeats: false)

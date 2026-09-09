@@ -90,7 +90,7 @@ struct SettingsView: View {
         } header: {
             informationHeading("Emergency bypass")
         } footer: {
-            Text("Works on every calculation, including the Settings gate. App access lasts for your chosen unlock time. Changing or removing the code requires the current passcode.")
+            Text("After entering the code, choose an app window from 15 minutes to the rest of today. The code also opens Settings and skips practice. Changing or removing it requires the current passcode.")
                 .font(.footnote).lineSpacing(3)
         }
     }

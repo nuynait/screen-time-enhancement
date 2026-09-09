@@ -29,7 +29,11 @@ Simulator UI tests use an explicitly labeled preview. They never assert real blo
 | Wrong answer | Shield remains; challenge explains retry | Not run |
 | Set and confirm emergency passcode, then relaunch Gate | Passcode stays configured and works; code is never displayed | Not run |
 | Wrong emergency code or cancel entry | No app unlock or Settings access | Not run |
-| Correct emergency code on an app challenge | Only that app opens for the offered duration; shield returns after expiry | Not run |
+| Correct emergency code on an app challenge | Duration picker appears; the app remains blocked until Unlock app is confirmed | Not run |
+| Confirm 15-minute or longer emergency window | Only that app opens for the selected duration; normal math preference is unchanged; shield returns after expiry | Not run |
+| Choose Rest of today, quit Gate, and cross midnight | Only the selected app stays open until the captured local midnight, then relocks | Not run |
+| Cancel or background the duration picker | No grant; reopening requires the code again | Not run |
+| Open picker near midnight or across a daylight-saving transition | Choices respect the remaining day; at least 15 minutes; no rollover to another day without entering the code again | Not run |
 | Emergency bypass on Settings or practice | No app grant is created or extended | Not run |
 | Leave unfinished passcode entry and return | Input clears, calculation refreshes, same saved code still works | Not run |
 | Change or remove emergency code | Current code required; old code stops working after change/removal | Not run |
@@ -80,3 +84,8 @@ The foreground-refresh update passes **17 core tests and the full 13-test simula
 ## Emergency passcode verification
 
 The emergency bypass update passes **20 core tests and 19 distinct simulator state/UI/app-hosted tests** across the suite and focused refinement/recovery runs. Tests cover confirmation, leading zeros, wrong/canceled entry, app/Settings/practice bypass, captured duration and per-app isolation, stale/duplicate session rejection, change/removal, background entry clearing, and Keychain persistence/protection attributes. Generic simulator signing with no developer team also passes the hosted checks. A simulator keyboard animation stall in an existing Settings test required restarting the simulator; the test then passed without an app-code workaround. Light/dark and largest-text screens were inspected, and the final signed Debug iPhone build succeeds. The physical-device checklist remains open.
+
+
+## Emergency unlock duration verification
+
+The duration update passes **24 core tests and 23 distinct simulator tests** across focused, regression, and visual-refinement runs. Coverage includes verification without granting access, explicit duration confirmation, cancellation and app switching, stale/duplicate authorization, independent math preferences, per-app isolation, local midnight, 23/25-hour daylight-saving days, the late-night 15-minute minimum, persisted expiry, and Device Activity schedule resolution. The largest-text test verifies the selected Today row and midnight preview after scrolling; it checks real onscreen bounds because XCTest reported an offscreen button as hittable. Light/dark and largest-text screenshots were inspected. The final signed Debug iPhone build of all four targets succeeds. Real shielding, extended windows, and midnight relocking still require the physical-device checks above.
