@@ -99,3 +99,5 @@ Whole-category blocking, website blocking, usage tracking, AI, cloud sync, and r
 - [x] Bound choices by local midnight, with a full 15-minute minimum near midnight and daylight-saving-aware day boundaries.
 - [x] Invalidate pending duration authorization on cancel, app switching, a new challenge, credential changes, or a new day.
 - [ ] Verify extended emergency windows and midnight relocking on a physical iPhone.
+
+- [x] Keep multi-hour countdowns on one line and stack app-row controls at accessibility text sizes.

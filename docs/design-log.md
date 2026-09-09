@@ -183,3 +183,13 @@ The README embeds the existing, inspected simulator screenshots in a three-step 
 
 
 **Final verification.** The strengthened largest-accessibility-size test passes (90.7 seconds), and its screenshot shows the fully visible Today row selected, Midnight tonight, and the full Unlock app action. All **24 core tests** and **23 distinct simulator state/UI/app-hosted tests** have passing results across focused, regression, and visual-refinement runs. The final signed Debug iPhone build succeeds for the app and all three extensions. Updated the public README with clean passcode-entry, duration-choice, and midnight-selection screenshots; inspected normal light/dark and largest-text layouts. Local links, public-file privacy checks, and whitespace checks pass. Restored the simulator to light appearance and cleared its status-bar override. Physical Screen Time enforcement and midnight/background relocking remain unverified and are listed in the device checklist.
+
+
+## 2026-09-09 — Prevent long countdowns from wrapping
+
+The on-device screenshot showed a multi-hour timer wrapping its final digit. The home row still constrained the timer to 62 points, a width inherited from the original minute-only windows. Removed that fixed width, kept the timer to one line at its intrinsic width, and gave it layout priority over the app name. At accessibility text sizes, app identities and their timer or Solve action stack vertically so the countdown retains readable type. Grant dates and timer behavior are unchanged.
+
+Verified the actual HomeView using a temporary app-hosted screenshot fixture with 4:32:23 and 24:59:59 windows at standard and largest accessibility text sizes. The fixture uses the isolated preview model; it was removed from the project after capturing the layouts and kept only in ignored local notes. Simulator compilation of all four targets and the visual fixture run passed. The final signed-build result is recorded below.
+
+
+**Final checks.** All four captured layouts keep the timer on one line, including the two-digit-hour window at the largest text size. The final signed Debug iPhone build of the app and all three extensions passes. The temporary snapshot source is absent from the regenerated Xcode project, and whitespace checks pass. This change affects layout only; no enforcement or expiry behavior was changed or newly verified.

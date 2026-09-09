@@ -4,6 +4,7 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var model: GateModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showingPicker = false
     @State private var showingSettings = false
     @State private var openSettingsAfterChallenge = false
@@ -163,14 +164,15 @@ struct HomeView: View {
             }.padding(.bottom, 12)
             ForEach(model.apps) { app in
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 16) {
+                    appRowLayout {
                         AppIdentity(app: app).font(.headline)
-                        Spacer()
+                        if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 16) }
                         if let grant = model.grant(for: app.id), model.authorized {
                             Text(timerInterval: grant.issuedAt...grant.expiresAt, countsDown: true)
                                 .font(.system(.body, design: .rounded, weight: .semibold))
                                 .monospacedDigit().foregroundStyle(GateTheme.blue)
-                                .frame(width: 62).accessibilityLabel("Time remaining")
+                                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                                .layoutPriority(1).accessibilityLabel("Time remaining")
                                 .accessibilityValue(Text(timerInterval: grant.issuedAt...grant.expiresAt, countsDown: true))
                                 .accessibilityIdentifier("countdown-\(app.id.uuidString)")
                         } else {
@@ -197,6 +199,12 @@ struct HomeView: View {
                 Rectangle().fill(GateTheme.rule).frame(height: 1)
             }
         }
+    }
+
+    private var appRowLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 16))
     }
 
     private var handoffHelp: some View {

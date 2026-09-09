@@ -56,7 +56,7 @@ Open **Settings → Emergency bypass → Set up passcode**. Hand your iPhone to 
 
 Once configured, every calculation has an **Emergency bypass** button. Tap it and enter the code to skip the calculation:
 
-- **Protected app:** after the correct code, choose **15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, or Today (until midnight)**. Review when it will lock again, then tap **Unlock app**. Only that app opens; your normal calculation duration stays unchanged.
+- **Protected app:** after the correct code, choose **15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, or Today (until midnight)**. Review when it will lock again, then tap **Unlock app**. Only that app opens; your normal calculation duration stays unchanged. Multi-hour countdowns stay on one line in the app list; at accessibility text sizes, the timer sits below the app name.
 - **Settings:** opens Settings for this visit without changing app windows.
 - **Practice:** finishes the practice round without unlocking apps.
 
